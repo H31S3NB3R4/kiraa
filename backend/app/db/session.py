@@ -2,7 +2,8 @@
 
 The local prototype runs on SQLite (no external services required); the
 same code path supports PostgreSQL by changing `DATABASE_URL` (see
-`.env.example`). ORM models and tables arrive in Phase 2.
+`.env.example`). Import `app.models` (done below) so the engine session is
+created with the full ORM metadata registered.
 """
 
 from __future__ import annotations
@@ -10,16 +11,15 @@ from __future__ import annotations
 import os
 from collections.abc import Iterator
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy import create_engine, event
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session, sessionmaker
 
+import app.models  # noqa: F401  (registers all tables on Base.metadata)
 from app.config import get_settings
+from app.models.base import Base
 
 _settings = get_settings()
-
-
-class Base(DeclarativeBase):
-    """Declarative base for all SQLAlchemy ORM models (Phase 2)."""
 
 
 def _prepare_sqlite_dir(url: str) -> None:
@@ -32,17 +32,27 @@ def _prepare_sqlite_dir(url: str) -> None:
         os.makedirs(db_dir, exist_ok=True)
 
 
-def _make_engine():
-    url = _settings.database_url
+def create_engine_for(url: str) -> Engine:
+    """Create an engine for ``url`` with prototype-appropriate options.
+
+    SQLite engines enable per-connection ``PRAGMA foreign_keys=ON`` so the
+    declared foreign keys are actually enforced (SQLite defaults to OFF).
+    """
     if url.startswith("sqlite"):
-        # `check_same_thread=False` allows the session to be used across
-        # FastAPI's threadpool; the SQLite prototype is single-process.
         _prepare_sqlite_dir(url)
-        return create_engine(url, connect_args={"check_same_thread": False})
+        sqlite_engine = create_engine(url, connect_args={"check_same_thread": False})
+
+        @event.listens_for(sqlite_engine, "connect")
+        def _enable_sqlite_fk(dbapi_connection, _record):  # noqa: ANN001
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+
+        return sqlite_engine
     return create_engine(url, pool_pre_ping=True)
 
 
-engine = _make_engine()
+engine = create_engine_for(_settings.database_url)
 
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
@@ -54,3 +64,14 @@ def get_db() -> Iterator[Session]:
         yield db
     finally:
         db.close()
+
+
+def create_all() -> None:
+    """Create every table that does not exist yet (idempotent)."""
+    Base.metadata.create_all(engine)
+
+
+def drop_all() -> None:
+    """Drop every table (used by the seed script's --recreate flag)."""
+    Base.metadata.drop_all(engine)
+

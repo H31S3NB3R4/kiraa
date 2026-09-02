@@ -102,33 +102,36 @@ Verified by 35 tests in `backend/tests/test_dataset_generator.py` (37 suite-wide
 
 # Phase 2 — Database
 
-- [ ] Create SQLAlchemy models.
-- [ ] Create database tables.
-- [ ] Add indexes for transaction IDs, settlement IDs, dates, merchant IDs.
-- [ ] Add foreign keys.
-- [ ] Add timestamps.
-- [ ] Add audit tables.
-- [ ] Add database seed script.
-- [ ] Confirm dataset can be recreated from scratch.
+- [x] Create SQLAlchemy models. *(`backend/app/models/` — 7 domain modules, SA 2.0 `Mapped[]` style; `Numeric(14,2)` money, `Numeric(8,6)` rates)*
+- [x] Create database tables. *(created by seed script / `app.db.session.create_all`; 17 tables incl. `dataset_labels`)*
+- [x] Add indexes for transaction IDs, settlement IDs, dates, merchant IDs. *(see each model's `__table_args__` + `index=True`)*
+- [x] Add foreign keys. *(hard FKs on child tables; `transactions.settlement_id/invoice_id` are indexed soft refs — settlements/invoices load after transactions; SQLite `PRAGMA foreign_keys=ON` enforced per connection)*
+- [x] Add timestamps. *(`TimestampMixin`: `created_at`/`updated_at` server defaults on every table)*
+- [x] Add audit tables. *(agent_runs, tool_calls, journal_proposals, approvals, audit_events)*
+- [x] Add database seed script. *(`backend/scripts/seed_db.py` → `app/services/db_seed.py`; guards double-seeding, `--recreate`, `--dataset`, `--database-url`)*
+- [x] Confirm dataset can be recreated from scratch. *(21 tests in `test_phase2_db.py`: generate → write JSON → load → seed → verify counts, FK enforcement, labels vs CSV, demo anchors)*
 
 ### Required tables
 
-- [ ] merchants
-- [ ] customers
-- [ ] transactions
-- [ ] settlements
-- [ ] refunds
-- [ ] fees
-- [ ] invoices
-- [ ] ledger_entries
-- [ ] cash_flows
-- [ ] reconciliation_exceptions
-- [ ] anomaly_scores
-- [ ] agent_runs
-- [ ] tool_calls
-- [ ] journal_proposals
-- [ ] approvals
-- [ ] audit_events
+- [x] merchants
+- [x] customers
+- [x] transactions
+- [x] settlements
+- [x] refunds
+- [x] fees
+- [x] invoices
+- [x] ledger_entries
+- [x] cash_flows
+- [x] reconciliation_exceptions
+- [x] anomaly_scores
+- [x] agent_runs
+- [x] tool_calls
+- [x] journal_proposals
+- [x] approvals
+- [x] audit_events
+
+Plus `dataset_labels` (17th table): Phase 1 ground truth stored in the DB so
+the Phase 12 evaluation harness can score engine output with SQL joins.
 
 ---
 

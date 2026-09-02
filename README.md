@@ -17,7 +17,8 @@ backend tools decide the **financial facts**. A human decides whether
 
 ## Current status
 
-**Phase 0 — project scaffold** and **Phase 1 — data foundation** are complete:
+**Phase 0 — project scaffold**, **Phase 1 — data foundation**, and
+**Phase 2 — database** are complete:
 
 - FastAPI backend skeleton with an application factory and CORS
 - `GET /health` liveness endpoint
@@ -26,7 +27,9 @@ backend tools decide the **financial facts**. A human decides whether
   via `DATABASE_URL`
 - Deterministic seeded dataset generator (see below) with all 10 buildathon
   scenarios injected and labelled with ground truth
-- Test suite runnable with pytest (35 dataset invariants + 2 health checks)
+- 17-table SQLAlchemy schema (16 planned tables + `dataset_labels`) with
+  foreign keys, indexes, and timestamps; populated by a seed script
+- Test suite runnable with pytest (35 dataset + 2 health + 21 database tests)
 
 All financial data in this system is **synthetic** and produced by a seeded
 dataset generator. Nothing here moves real money.
@@ -53,6 +56,43 @@ scenario is labelled: `scenario`, `recon_exception` (must be caught by
 deterministic reconciliation), `anomaly` (ML ground truth; passes all
 deterministic checks).
 
+## Database (Phase 2)
+
+Seventeen tables mirror the dataset one-to-one: ten are loaded by the
+seeder (merchants, customers, transactions, settlements, refunds, fees,
+invoices, ledger_entries, cash_flows, and `dataset_labels` — the ground
+truth for the Phase 12 evaluation harness). The remaining operational
+tables are written by later phases (reconciliation_exceptions,
+anomaly_scores, agent_runs, tool_calls, journal_proposals, approvals,
+audit_events). Money columns are `Numeric(14, 2)` (SQLAlchemy returns
+`Decimal`), and SQLite enforces foreign keys via `PRAGMA foreign_keys=ON`
+on every connection.
+
+```powershell
+# From backend/ — seed data/finance.db with the committed dev dataset
+..\.venv\Scripts\python.exe scripts\seed_db.py
+```
+
+Options:
+
+```text
+--dataset <path>      dataset JSON (default: data/generated/dataset.json)
+--database-url <url>  SQLAlchemy URL (default: DATABASE_URL env var)
+--recreate            drop & rebuild all tables before seeding
+```
+
+Examples:
+
+```powershell
+..\.venv\Scripts\python.exe scripts\seed_db.py --recreate
+..\.venv\Scripts\python.exe scripts\seed_db.py --dataset ..\data\benchmark\benchmark.json
+```
+
+The seeder refuses to run twice without `--recreate` (protects the demo
+database), validates the dataset JSON structure, and inserts in FK-safe
+order inside one transaction. Exit codes: `0` success, `1` already seeded,
+`2` dataset load failure.
+
 ## Repository layout
 
 ```text
@@ -64,9 +104,9 @@ backend/
     api/schemas/       shared request/response schemas
     agent/             controller loop, tool registry, LLM provider adapters
     tools/             deterministic finance tools
-    services/          cross-cutting services (audit, approvals, metrics)
-    models/            SQLAlchemy ORM models
-    db/                engine, session, declarative base
+    services/          cross-cutting services (dataset generator, DB seeding; audit/approvals later)
+    models/            SQLAlchemy ORM models (17 tables, Base + TimestampMixin)
+    db/                engine, session, create_all/drop_all
   ml/                  anomaly model training + artifacts
   scripts/             dataset generator and utilities
   tests/               pytest suite
