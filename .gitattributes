@@ -1,0 +1,6 @@
+# Normalize text files to LF in the repository (Windows checkouts stay consistent).
+* text=auto
+
+# Never touch line endings of generated datasets — byte-identical
+# reproducibility relies on them being stored verbatim.
+data/** -text

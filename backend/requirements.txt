@@ -1,0 +1,22 @@
+# --- Core API -------------------------------------------------------
+fastapi
+uvicorn[standard]
+pydantic
+python-dotenv
+
+# --- Database -------------------------------------------------------
+sqlalchemy
+psycopg[binary]        # PostgreSQL driver (prototype uses SQLite by default)
+
+# --- Finance engine / ML ---------------------------------------------
+pandas
+numpy
+scikit-learn
+statsmodels
+
+# --- LLM provider ------------------------------------------------------
+google-genai          # official Gemini SDK
+
+# --- Testing ------------------------------------------------------------
+pytest
+httpx                 # required by FastAPI's TestClient
