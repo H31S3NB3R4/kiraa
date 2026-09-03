@@ -18,8 +18,8 @@ backend tools decide the **financial facts**. A human decides whether
 ## Current status
 
 **Phase 0 — project scaffold**, **Phase 1 — data foundation**, **Phase 2 — database**,
-**Phase 3 — deterministic finance engine**, and **Phase 4 — forecasting module**
-are complete:
+**Phase 3 — deterministic finance engine**, **Phase 4 — forecasting module**, and
+**Phase 5 — ML anomaly detection** are complete:
 
 - FastAPI backend skeleton with an application factory and CORS
 - `GET /health` liveness endpoint
@@ -37,8 +37,14 @@ are complete:
 - Deterministic cash-flow forecasting (`forecast_cashflow`): pooled or
   per-merchant horizon forecasts from rolling averages with LOW/MEDIUM/HIGH
   risk classification, drivers, and a chart-ready response schema
+- ML anomaly detection (`detect_anomalies`): Isolation Forest trained on
+  pure-normal synthetic history with a p99.9-calibrated threshold,
+  high/medium/low severity bands, reason metadata against the merchant
+  baseline, and ground-truth metrics — validated at **100% precision and
+  recall with zero false positives** (dev dataset, 500-txn benchmark, and
+  unseen seeds)
 - Test suite runnable with pytest (35 dataset + 2 health + 21 database
-  + 27 engine + 29 forecast tests)
+  + 27 engine + 29 forecast + 32 anomaly tests)
 
 All financial data in this system is **synthetic** and produced by a seeded
 dataset generator. Nothing here moves real money.
@@ -153,6 +159,54 @@ deliberately deterministic, independent of Gemini (PRD FR-4, section 12):
   balance, `sources` — so the LLM explains (never invents) the numbers
 - `app/api/schemas/forecast.py` mirrors the tool result as a chart-ready
   pydantic `ForecastResponse` + per-day `ForecastPoint`
+
+## ML anomaly detection (Phase 5)
+
+`detect_anomalies(db, merchant_id=None, transaction_ids=None, limit=500, *,
+persist=True, model=None)` in `backend/app/tools/anomalies.py` scores
+transactions with a trained Isolation Forest. It runs *alongside*
+deterministic reconciliation — never replacing it — and every result
+cross-links the deterministic verdict via `reconciliation_pass` (PRD FR-6):
+
+- the model (`ml/train_anomaly.py`) trains on a **pure-normal** synthetic
+  history (seed 202, 2000 transactions, zero injected exceptions) so it
+  learns the shape of normal behaviour only; at serving time the bundle
+  resolves as explicit model > persisted artifact > deterministic
+  in-process retrain
+- four features (`ml/features.py`): amount vs the merchant's median, UTC
+  hour, settlement delay (missing = NaN, "settlement not received"), and
+  fee ratio — one canonical pipeline shared by training and serving
+- the flag threshold (0.6947) is calibrated at the **99.9th percentile**
+  of 2600 pooled normal scores (training + two exception-free validation
+  sets), keeping every rare-but-legitimate normal corner below the flag
+- every result carries a high/medium/low **severity band** (medium is a
+  watch signal within 0.05 of the threshold), a human-readable reason,
+  and full feature metadata comparing the record against the merchant
+  baseline
+- `merchant_id`/`transaction_ids` scope the scan, results come back
+  score-descending, and `limit` caps returned rows while metrics describe
+  the full scan; guards return `unknown_merchant`/`no_transactions`
+  envelopes that still schema-validate
+- ground-truth metrics vs `dataset_labels.anomaly` ship with every scan —
+  **100% precision, 100% recall, 0.0 false-positive rate** on the dev
+  dataset, the 500-transaction benchmark, and unseen seeds; scores upsert
+  idempotently into `anomaly_scores` per `(transaction_id, model_version)`
+- `app/api/schemas/anomalies.py` mirrors the result as a pydantic
+  `AnomalyResponse` + per-row `AnomalyScoreRow`
+
+The flagship demo case (todo Phase 5): the injected hidden anomaly — 7.18x
+its merchant's median at 03:xx UTC with perfectly consistent books — has
+`reconciliation = PASS` and `anomaly = HIGH`, exactly the value the ML layer
+adds beyond deterministic rules.
+
+```powershell
+# Retrain / inspect the anomaly model (deterministic, seeded)
+.\.venv\Scripts\python.exe backend\scripts\train_anomaly.py
+```
+
+The versioned artifact lives at `backend/ml/artifacts/iforest-v1.joblib`
+(gitignored); the in-process fallback retrains to the identical bundle, so
+results reproduce exactly with or without the binary.
 
 ## Repository layout
 

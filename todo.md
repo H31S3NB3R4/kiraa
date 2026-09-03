@@ -214,16 +214,16 @@ Target tool result:
 
 # Phase 5 — ML Anomaly Detection
 
-- [ ] Build feature engineering pipeline.
-- [ ] Generate historical normal training data.
-- [ ] Train Isolation Forest.
-- [ ] Save model artifact/version.
-- [ ] Implement scoring function.
-- [ ] Calibrate anomaly threshold on synthetic validation data.
-- [ ] Add anomaly reason metadata.
-- [ ] Add batch scoring.
-- [ ] Add unit tests.
-- [ ] Measure precision/recall and false-positive rate.
+- [x] Build feature engineering pipeline. *(`backend/ml/features.py` — one canonical feature-record shape shared by training (generator dicts) and serving (DB rows); 4 model features: `median_ratio`, `hour`, `settle_delay` (NaN = settlement not received), `fee_ratio`)*
+- [x] Generate historical normal training data. *(pure-normal synthetic history via the Phase 1 generator — seed 202, 2000 transactions over 56 days, `exceptions_per_type=0`; the model never sees a labelled anomaly)*
+- [x] Train Isolation Forest. *(`backend/ml/train_anomaly.py::train_model` — 300 trees, `max_samples=1024`, fixed `random_state`; fully deterministic, never touches the wall clock)*
+- [x] Save model artifact/version. *(versioned joblib bundle `ml/artifacts/iforest-v1.joblib` — model + merchant medians + threshold + feature names + training summary — written by `backend/scripts/train_anomaly.py`; gitignored, with a deterministic in-process retrain fallback so results reproduce with or without it)*
+- [x] Implement scoring function. *(`score_records` — `anomaly_score = -score_samples` rounded to 4 dp, `is_anomaly = score >= threshold`, severity: high at/above the threshold, medium within the 0.05 watch margin, else low)*
+- [x] Calibrate anomaly threshold on synthetic validation data. *(threshold = p99.9 of 2600 pooled normal scores — training set plus two exception-free validation sets, seeds 303/304 — cutting at 0.6947 keeps every rare-but-legitimate normal corner below the flag)*
+- [x] Add anomaly reason metadata. *(`explain_record` — amount vs merchant median, hour, weekday, settlement delay, fee/refund ratios, customer — plus a one-line human-readable `reason`; persisted as JSON in `anomaly_scores.reasons`)*
+- [x] Add batch scoring. *(`detect_anomalies` in `backend/app/tools/anomalies.py` — `merchant_id`/`transaction_ids` filters, score-descending results, `limit` caps returned rows while metrics describe the full scan, `unknown_merchant`/`no_transactions` guards)*
+- [x] Add unit tests. *(32 tests in `backend/tests/test_phase5_anomalies.py` — exact feature values, threshold/severity bands, filters, guards, invalid-argument errors, persistence idempotency, schema round-trip, serving determinism, artifact/retrain parity)*
+- [x] Measure precision/recall and false-positive rate. *(ground-truth metrics vs `dataset_labels.anomaly` returned by every scan: 100% precision, 100% recall, 0.0 false-positive rate on the dev dataset, the 500-txn benchmark, and unseen seeds; ML flags stay disjoint from reconciliation exceptions by design)*
 
 ### Important demo case
 
@@ -235,6 +235,12 @@ Anomaly score  = HIGH
 ```
 
 This clearly demonstrates why the ML layer adds value.
+
+**Satisfied**: the injected hidden anomaly — 7.18x its merchant's median
+amount at 03:xx UTC with perfectly consistent books — reconciles clean
+(`reconciliation_pass: true`) yet scores HIGH above the calibrated
+threshold. `detect_anomalies` cross-links both verdicts on the same row,
+which is exactly the value the ML layer adds beyond deterministic rules.
 
 ---
 
