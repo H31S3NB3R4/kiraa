@@ -185,17 +185,17 @@ Target tool result:
 
 # Phase 4 — Forecasting Module
 
-- [ ] Aggregate daily cash inflows.
-- [ ] Aggregate daily cash outflows.
-- [ ] Calculate historical rolling averages.
-- [ ] Add initial forecast model.
-- [ ] Produce seven-day forecast.
-- [ ] Calculate projected ending balance.
-- [ ] Add operating threshold configuration.
-- [ ] Implement LOW/MEDIUM/HIGH risk classification.
-- [ ] Return forecast drivers.
-- [ ] Add tests for deterministic outputs.
-- [ ] Create a chart-ready response schema.
+- [x] Aggregate daily cash inflows. *(pooled or per-merchant per-day `SUM` over `cash_flows` in `app/tools/forecast.py::_daily_history` — round2 per day, dense daily rows)*
+- [x] Aggregate daily cash outflows. *(same pass; anchor-day closing balances summed for the projection start point)*
+- [x] Calculate historical rolling averages. *(trailing `history_days` (default 28) daily averages plus a recent 7-day rolling window; week-over-week `net_trend_per_day` driver)*
+- [x] Add initial forecast model. *(flat `recent-rolling-average` model: the recent 7-day averages are projected forward unchanged — deliberately deterministic, no LLM arithmetic)*
+- [x] Produce seven-day forecast. *(default `horizon_days=7`, configurable 1-30; consecutive dates from the anchor day)*
+- [x] Calculate projected ending balance. *(running `round2` balance walk mirroring the generator's arithmetic; `projected_ending_balance`, `min_projected_cash`/`min_projected_date`)*
+- [x] Add operating threshold configuration. *(`OPERATING_THRESHOLD` setting (default 50000) in `app/config.py` + `.env.example`; per-call `operating_threshold` argument overrides)*
+- [x] Implement LOW/MEDIUM/HIGH risk classification. *(HIGH if any projected day < threshold; MEDIUM if the minimum is within 25% above it; else LOW — with `breach_days`, `first_breach_date`, `headroom`, `headroom_pct`)*
+- [x] Return forecast drivers. *(daily/recent averages, trend, volatility CV + confidence label, min/first-breach/headroom, anchor balance/date, `sources` — everything the LLM needs to explain, never invent, the numbers)*
+- [x] Add tests for deterministic outputs. *(29 tests in `backend/tests/test_phase4_forecast.py`; expectations re-derived independently from the dataset's own `cash_flows` rows — Phase 3 pattern)*
+- [x] Create a chart-ready response schema. *(`app/api/schemas/forecast.py` — pydantic v2 `ForecastResponse` + per-day `ForecastPoint`; guard envelopes validate against the same schema)*
 
 ### MVP output
 

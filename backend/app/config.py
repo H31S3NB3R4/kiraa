@@ -42,6 +42,11 @@ class Settings(BaseModel):
     # --- Agent safety limits ----------------------------------------------
     agent_max_tool_calls: int = 12
 
+    # --- Forecasting (Phase 4) --------------------------------------------
+    # Minimum operating cash (INR); a cash-flow forecast whose projection
+    # dips below this classifies as HIGH risk (`forecast_cashflow`).
+    operating_threshold: float = 50_000.0
+
 
 def _resolve_database_url(url: str) -> str:
     """Anchor a relative SQLite path to the repository root.
@@ -75,4 +80,5 @@ def get_settings() -> Settings:
         ),
         cors_origins=origins,
         agent_max_tool_calls=int(os.getenv("AGENT_MAX_TOOL_CALLS", "12")),
+        operating_threshold=float(os.getenv("OPERATING_THRESHOLD", "50000")),
     )

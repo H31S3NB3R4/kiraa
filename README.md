@@ -18,7 +18,8 @@ backend tools decide the **financial facts**. A human decides whether
 ## Current status
 
 **Phase 0 — project scaffold**, **Phase 1 — data foundation**, **Phase 2 — database**,
-and **Phase 3 — deterministic finance engine** are complete:
+**Phase 3 — deterministic finance engine**, and **Phase 4 — forecasting module**
+are complete:
 
 - FastAPI backend skeleton with an application factory and CORS
 - `GET /health` liveness endpoint
@@ -33,8 +34,11 @@ and **Phase 3 — deterministic finance engine** are complete:
   with financial impact and idempotent persistence, read-only ledger
   queries, and GST matching — validated at **100% precision and recall**
   against the ground truth (dev dataset and 500-txn benchmark)
+- Deterministic cash-flow forecasting (`forecast_cashflow`): pooled or
+  per-merchant horizon forecasts from rolling averages with LOW/MEDIUM/HIGH
+  risk classification, drivers, and a chart-ready response schema
 - Test suite runnable with pytest (35 dataset + 2 health + 21 database
-  + 27 engine tests)
+  + 27 engine + 29 forecast tests)
 
 All financial data in this system is **synthetic** and produced by a seeded
 dataset generator. Nothing here moves real money.
@@ -127,6 +131,29 @@ clean) and 45/45 on the 500-transaction benchmark. Impact values match the
 injected error rates to the paise (0.5% fee overcharge, 15% refund
 overpay, 8% GST error, T+5 settlement delay).
 
+## Cash-flow forecasting (Phase 4)
+
+`forecast_cashflow(db, merchant_id=None, *, horizon_days=7, history_days=28,
+operating_threshold=None)` in `backend/app/tools/forecast.py` projects the
+cash position forward from the per-day aggregates in `cash_flows` —
+deliberately deterministic, independent of Gemini (PRD FR-4, section 12):
+
+- aggregates daily inflows/outflows over the trailing `history_days`
+  (default 28), pooled across all merchants when `merchant_id=None`
+- computes trailing daily averages plus a recent 7-day rolling window and a
+  week-over-week net trend
+- projects the recent rolling averages flat across `horizon_days` (1-30,
+  default 7) from the anchor day's closing balance, using the same running
+  `round2` arithmetic as the dataset generator
+- classifies risk against the operating threshold (per-call argument, else
+  `OPERATING_THRESHOLD`, default 50000): HIGH if any projected day falls
+  below it, MEDIUM if the minimum stays within 25% above it, else LOW
+- returns the drivers behind the classification — averages, trend,
+  volatility-based confidence label, minimum/first-breach/headroom, anchor
+  balance, `sources` — so the LLM explains (never invents) the numbers
+- `app/api/schemas/forecast.py` mirrors the tool result as a chart-ready
+  pydantic `ForecastResponse` + per-day `ForecastPoint`
+
 ## Repository layout
 
 ```text
@@ -193,6 +220,7 @@ All configuration is environment-driven; see `.env.example` for the full list.
 | `DATABASE_URL`         | `sqlite:///./data/finance.db` | SQLAlchemy URL; switch to PostgreSQL when ready |
 | `CORS_ORIGINS`         | Vite dev origins              | Comma-separated allowed browser origins        |
 | `AGENT_MAX_TOOL_CALLS` | `12`                          | Bounded tool-call limit per agent run (safety) |
+| `OPERATING_THRESHOLD`  | `50000`                       | Minimum operating cash (INR) for forecast risk  |
 
 ## Safety model (summary)
 
