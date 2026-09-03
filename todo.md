@@ -139,17 +139,17 @@ the Phase 12 evaluation harness can score engine output with SQL joins.
 
 ## 3.1 Reconciliation
 
-- [ ] Implement transaction/settlement normalization.
-- [ ] Implement transaction ID matching.
-- [ ] Implement amount tolerance.
-- [ ] Implement fee comparison.
-- [ ] Implement refund comparison.
-- [ ] Implement settlement timing comparison.
-- [ ] Implement duplicate detection.
-- [ ] Implement exception classification.
-- [ ] Calculate financial impact per exception.
-- [ ] Return aggregate reconciliation metrics.
-- [ ] Add unit tests.
+- [x] Implement transaction/settlement normalization. *(`round2` money normalization + `coerce_date` in `backend/app/tools/common.py`; Decimal vs float handled via `float()`)*
+- [x] Implement transaction ID matching. *(settlement/refund/fee/invoice/ledger joined per `transaction_id` in `app/tools/reconciliation.py`)*
+- [x] Implement amount tolerance. *(half-paise `MONEY_TOLERANCE = 0.005` — exact for the paise-exact dataset, robust to float artefacts)*
+- [x] Implement fee comparison. *(expected fee = `round2(amount x merchant.fee_rate)`; catches the 0.5% overcharge exactly)*
+- [x] Implement refund comparison. *(recorded vs expected refund; catches the 15% overpay exactly)*
+- [x] Implement settlement timing comparison. *(due = T+2; `exception_date` anchors on the due date; catches T+5 injections)*
+- [x] Implement duplicate detection. *(same merchant/customer/amount within a 10-minute window; chain-clustered; both pair members flagged like the ground truth)*
+- [x] Implement exception classification. *(9-way first-hit-wins taxonomy: MISSING_SETTLEMENT, FEE_MISMATCH, AMOUNT_MISMATCH, SETTLEMENT_TIMING_MISMATCH, REFUND_MISMATCH, FAILED_LEDGER_WRITE, LEDGER_MISMATCH, GST_MISMATCH, DUPLICATE_TRANSACTION)*
+- [x] Calculate financial impact per exception. *(signed `recorded - expected` exposure; missing/delayed net for settlement issues; charged amount for duplicates)*
+- [x] Return aggregate reconciliation metrics. *(transactions/matched/exceptions/by_type/total_financial_impact/match_rate_pct)*
+- [x] Add unit tests. *(27 tests in `backend/tests/test_phase3_engine.py`; 100% precision & recall vs the 9 ground-truth exception rows — also verified 45/45 on the 500-txn benchmark)*
 
 Target tool result:
 
@@ -164,22 +164,22 @@ Target tool result:
 
 ## 3.2 Ledger query
 
-- [ ] Implement read-only transaction query.
-- [ ] Support date range.
-- [ ] Support transaction ID.
-- [ ] Support merchant ID.
-- [ ] Support status.
-- [ ] Return source references.
-- [ ] Add indexes.
-- [ ] Add unit tests.
+- [x] Implement read-only transaction query. *(`app/tools/ledger.py` — pure SELECT, never mutates; joins ledger->transaction->merchant)*
+- [x] Support date range. *(start/end inclusive, ISO strings or `date`)*
+- [x] Support transaction ID.
+- [x] Support merchant ID.
+- [x] Support status. *(plus account and merchant-category filters)*
+- [x] Return source references. *(settlement_id + invoice_id attached to every row)*
+- [x] Add indexes. *(already present on `ledger_entries` from Phase 2 — `ix_ledger_entries_date`, `ix_ledger_entries_merchant_date`, `transaction_id` index)*
+- [x] Add unit tests. *(filter combinations, limit/truncation, inverted-range guard)*
 
 ## 3.3 GST matching
 
-- [ ] Implement expected GST calculation.
-- [ ] Compare with recorded GST.
-- [ ] Return exact difference.
-- [ ] Include invoice/transaction source IDs.
-- [ ] Add mismatch test cases.
+- [x] Implement expected GST calculation. *(expected tax = `round2(total x rate / (1 + rate))` — mirrors the generator's invoice decomposition to the paise)*
+- [x] Compare with recorded GST.
+- [x] Return exact difference.
+- [x] Include invoice/transaction source IDs. *(sources: transaction_id, invoice_id, settlement_id)*
+- [x] Add mismatch test cases. *(matched, 8%-error mismatch, unknown-transaction)*
 
 ---
 

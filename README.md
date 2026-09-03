@@ -17,8 +17,8 @@ backend tools decide the **financial facts**. A human decides whether
 
 ## Current status
 
-**Phase 0 — project scaffold**, **Phase 1 — data foundation**, and
-**Phase 2 — database** are complete:
+**Phase 0 — project scaffold**, **Phase 1 — data foundation**, **Phase 2 — database**,
+and **Phase 3 — deterministic finance engine** are complete:
 
 - FastAPI backend skeleton with an application factory and CORS
 - `GET /health` liveness endpoint
@@ -29,7 +29,12 @@ backend tools decide the **financial facts**. A human decides whether
   scenarios injected and labelled with ground truth
 - 17-table SQLAlchemy schema (16 planned tables + `dataset_labels`) with
   foreign keys, indexes, and timestamps; populated by a seed script
-- Test suite runnable with pytest (35 dataset + 2 health + 21 database tests)
+- Deterministic finance tools (`app/tools/`): 9-way reconciliation engine
+  with financial impact and idempotent persistence, read-only ledger
+  queries, and GST matching — validated at **100% precision and recall**
+  against the ground truth (dev dataset and 500-txn benchmark)
+- Test suite runnable with pytest (35 dataset + 2 health + 21 database
+  + 27 engine tests)
 
 All financial data in this system is **synthetic** and produced by a seeded
 dataset generator. Nothing here moves real money.
@@ -92,6 +97,35 @@ The seeder refuses to run twice without `--recreate` (protects the demo
 database), validates the dataset JSON structure, and inserts in FK-safe
 order inside one transaction. Exit codes: `0` success, `1` already seeded,
 `2` dataset load failure.
+
+## Deterministic finance engine (Phase 3)
+
+Three tools in `backend/app/tools/` decide the financial facts; they never
+need the LLM and are unit-testable in isolation (the Phase 6 agent layer
+will expose them to Gemini through the PRD tool contracts).
+
+- `run_reconciliation(db, merchant_id?, start_date?, end_date?, persist=?)` —
+  9-way exception classification (missing settlement, fee, amount, timing,
+  refund, failed ledger write, ledger amount, GST, duplicates) with signed
+  financial impact, exception-level evidence with source references,
+  aggregate metrics, and **idempotent** persistence into
+  `reconciliation_exceptions` (upsert keyed by
+  `(transaction_id, exception_type)`).
+- `query_ledger(db, merchant_id?, transaction_id?, start_date?, end_date?,
+  status?, account?, category?, limit?)` — read-only, source-linked ledger
+  queries (every row carries its settlement/invoice references).
+- `check_gst_match(db, transaction_id)` — expected tax
+  (`total x rate / (1 + rate)`) vs recorded tax, exact difference, and
+  source references.
+
+Rules mirror the dataset generator exactly (T+2 settlement, 10-minute
+duplicate window, net = amount − fee), so engine arithmetic and
+ground-truth arithmetic can never drift. Validated at **100% precision and
+100% recall**: the 9 ground-truth exception rows on the dev dataset (both
+duplicate rows flagged; every NORMAL record and the HIDDEN_ANOMALY pass
+clean) and 45/45 on the 500-transaction benchmark. Impact values match the
+injected error rates to the paise (0.5% fee overcharge, 15% refund
+overpay, 8% GST error, T+5 settlement delay).
 
 ## Repository layout
 
