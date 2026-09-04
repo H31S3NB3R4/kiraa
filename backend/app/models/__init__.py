@@ -9,14 +9,14 @@ Domain layout:
 - payments:     transactions, settlements, refunds, fees, invoices
 - accounting:   ledger_entries, cash_flows
 - operations:   dataset_labels, reconciliation_exceptions, anomaly_scores
-- agent:        agent_runs, tool_calls
+- agent:        agent_runs, agent_messages, tool_calls
 - audit:        journal_proposals, approvals, audit_events
 """
 
 from __future__ import annotations
 
 from app.models.accounting import CashFlow, LedgerEntry
-from app.models.agent import AgentRun, ToolCall
+from app.models.agent import AgentMessage, AgentRun, ToolCall
 from app.models.audit import Approval, AuditEvent, JournalProposal
 from app.models.base import Base, TimestampMixin
 from app.models.master_data import Customer, Merchant
@@ -48,6 +48,7 @@ __all__ = [
     "AnomalyScore",
     # agent
     "AgentRun",
+    "AgentMessage",
     "ToolCall",
     # audit
     "JournalProposal",

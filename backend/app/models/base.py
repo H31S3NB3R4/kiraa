@@ -2,7 +2,7 @@
 
 Every ORM model inherits from `Base` and the domain modules in this package
 register their tables on import. `app.models.__init__` imports the domain
-modules so `Base.metadata` always contains the full 17-table schema.
+modules so `Base.metadata` always contains the full 18-table schema.
 """
 
 from __future__ import annotations

@@ -306,21 +306,22 @@ final answer
 
 # Phase 7 — Multi-Turn Agent State
 
-- [ ] Create `run_id`.
-- [ ] Persist user messages.
-- [ ] Persist model requests/responses.
-- [ ] Persist tool calls/results.
-- [ ] Reuse context for follow-up messages.
-- [ ] Test:
+- [x] Create `run_id`. *(RUN-{12-hex-uuid}, returned on every response; passing it back continues the same run — unknown run_id raises 404 AgentRunNotFoundError, never a silent new conversation)*
+- [x] Persist user messages. *(agent_messages rows: role=user, content={"text": ...}, monotonic per-run seq)*
+- [x] Persist model requests/responses. *(role=model rows carry {"text", "tool_calls", "latency_ms"} — tool-request rounds and final answers both persisted; role=model error fallback carries the safe answer text)*
+- [x] Persist tool calls/results. *(tool_calls rows keyed by the same run_id with their own seq — visible to all later turns and to the run-wide tool-limit summary)*
+- [x] Reuse context for follow-up messages. *(controller.run(..., run_id=...) replays the saved transcript before the new message; POST /api/agent/chat accepts run_id)*
+- [x] Test:
 
 ```text
 User: Reconcile this week.
 User: What are the biggest exceptions?
 User: Investigate the top one.
 ```
+*(test_three_turn_investigation_accumulates_tool_calls — same run_id across all three turns, tool_call_count and latency accumulate, turn_count reaches 3)*
 
-- [ ] Ensure later questions can use earlier retrieved context.
-- [ ] Prevent uncontrolled context growth.
+- [x] Ensure later questions can use earlier retrieved context. *(turn 3's replay includes turn 1-2 texts and every tool-request round of prior multi-round turns, verbatim and in order)*
+- [x] Prevent uncontrolled context growth. *(AGENT_MAX_HISTORY_MESSAGES, default 40 — bounded most-recent replay that never orphans a tool-request round from its result pair; run-wide tool budget AGENT_MAX_TOOL_CALLS spans turns, tool_limit turns persist a deterministic summary and the run stays continuable)*
 
 ---
 

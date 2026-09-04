@@ -15,7 +15,11 @@ financial facts itself.
 
 from __future__ import annotations
 
-from app.agent.controller import AgentController, run_agent
+from app.agent.controller import (
+    AgentController,
+    AgentRunNotFoundError,
+    run_agent,
+)
 from app.agent.prompts import SYSTEM_PROMPT, build_system_prompt
 from app.agent.tool_registry import (
     TOOL_DECLARATIONS,
@@ -26,6 +30,7 @@ from app.agent.tool_registry import (
 
 __all__ = [
     "AgentController",
+    "AgentRunNotFoundError",
     "SYSTEM_PROMPT",
     "TOOL_DECLARATIONS",
     "TOOL_PERMISSIONS",

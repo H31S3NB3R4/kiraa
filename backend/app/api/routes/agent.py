@@ -15,7 +15,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.agent.controller import AgentController
+from app.agent.controller import AgentController, AgentRunNotFoundError
 from app.agent.providers.base import LLMProvider, LLMProviderError
 from app.agent.providers.gemini import GeminiProvider
 from app.api.schemas.agent import AgentChatRequest, AgentChatResponse
@@ -56,7 +56,18 @@ def chat(
     provider: Annotated[LLMProvider, Depends(get_provider)],
     db: Annotated[Session, Depends(get_db)],
 ) -> AgentChatResponse:
-    """Run the bounded tool-calling loop for one analyst message (FR-1)."""
+    """Run one analyst turn: new conversation, or continue ``run_id``.
+
+    Passing a previous ``run_id`` replays its saved transcript (bounded by
+    ``AGENT_MAX_HISTORY_MESSAGES``) so follow-up questions can use earlier
+    retrieved context (FR-1, architecture section 11). Unknown run ids
+    return 404 rather than silently starting a new conversation.
+    """
     controller = AgentController(provider, db, merchant_id=request.merchant_id)
-    result = controller.run(request.message)
+    try:
+        result = controller.run(request.message, run_id=request.run_id)
+    except AgentRunNotFoundError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
     return AgentChatResponse(**result)

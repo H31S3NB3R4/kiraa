@@ -28,7 +28,7 @@ backend tools decide the **financial facts**. A human decides whether
   via `DATABASE_URL`
 - Deterministic seeded dataset generator (see below) with all 10 buildathon
   scenarios injected and labelled with ground truth
-- 17-table SQLAlchemy schema (16 planned tables + `dataset_labels`) with
+- 18-table SQLAlchemy schema (17 planned tables + `dataset_labels`) with
   foreign keys, indexes, and timestamps; populated by a seed script
 - Deterministic finance tools (`app/tools/`): 9-way reconciliation engine
   with financial impact and idempotent persistence, read-only ledger
@@ -220,7 +220,7 @@ backend/
     agent/             controller loop, tool registry, LLM provider adapters
     tools/             deterministic finance tools
     services/          cross-cutting services (dataset generator, DB seeding; audit/approvals later)
-    models/            SQLAlchemy ORM models (17 tables, Base + TimestampMixin)
+    models/            SQLAlchemy ORM models (18 tables, Base + TimestampMixin)
     db/                engine, session, create_all/drop_all
   ml/                  anomaly model training + artifacts
   scripts/             dataset generator and utilities
@@ -273,7 +273,8 @@ All configuration is environment-driven; see `.env.example` for the full list.
 | `GEMINI_MODEL`         | `gemini-2.5-flash`           | Model used by the controller                   |
 | `DATABASE_URL`         | `sqlite:///./data/finance.db` | SQLAlchemy URL; switch to PostgreSQL when ready |
 | `CORS_ORIGINS`         | Vite dev origins              | Comma-separated allowed browser origins        |
-| `AGENT_MAX_TOOL_CALLS` | `12`                          | Bounded tool-call limit per agent run (safety) |
+| `AGENT_MAX_TOOL_CALLS` | `12`                          | Bounded tool-call limit per agent run (spans all turns) |
+| `AGENT_MAX_HISTORY_MESSAGES` | `40`                     | Conversation events replayed on follow-up turns (bounded context) |
 | `OPERATING_THRESHOLD`  | `50000`                       | Minimum operating cash (INR) for forecast risk  |
 
 ## Safety model (summary)

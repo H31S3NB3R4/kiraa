@@ -36,6 +36,7 @@ class AgentChatResponse(BaseModel):
 
     run_id: str
     status: str
+    turn_count: int = 1
     answer: str
     tools_used: list[str] = Field(default_factory=list)
     evidence: list[str] = Field(default_factory=list)

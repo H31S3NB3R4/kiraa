@@ -41,6 +41,9 @@ class Settings(BaseModel):
 
     # --- Agent safety limits ----------------------------------------------
     agent_max_tool_calls: int = 12
+    # Conversation messages replayed to the model on a follow-up turn
+    # (bounded multi-turn context, Phase 7).
+    agent_max_history_messages: int = Field(default=40, ge=1)
 
     # --- Forecasting (Phase 4) --------------------------------------------
     # Minimum operating cash (INR); a cash-flow forecast whose projection
@@ -80,5 +83,8 @@ def get_settings() -> Settings:
         ),
         cors_origins=origins,
         agent_max_tool_calls=int(os.getenv("AGENT_MAX_TOOL_CALLS", "12")),
+        agent_max_history_messages=int(
+            os.getenv("AGENT_MAX_HISTORY_MESSAGES", "40")
+        ),
         operating_threshold=float(os.getenv("OPERATING_THRESHOLD", "50000")),
     )
