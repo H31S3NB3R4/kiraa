@@ -248,42 +248,42 @@ which is exactly the value the ML layer adds beyond deterministic rules.
 
 ## Provider adapter
 
-- [ ] Create `LLMProvider` interface.
-- [ ] Implement Gemini provider.
-- [ ] Keep Gemini-specific request/response parsing isolated.
-- [ ] Add environment-based model configuration.
+- [x] Create `LLMProvider` interface. *(app/agent/providers/base.py: generate(messages, tools) + provider-agnostic message shapes)*
+- [x] Implement Gemini provider. *(providers/gemini.py over google-genai; AFC disabled, call-id echo, bounded retry on 429/5xx)*
+- [x] Keep Gemini-specific request/response parsing isolated. *(controller speaks only base.py types; SDK types never escape the adapter)*
+- [x] Add environment-based model configuration. *(GEMINI_API_KEY / GEMINI_MODEL; a missing key yields a safe 503)*
 
 ## Tool schemas
 
-- [ ] Define `run_reconciliation` schema.
-- [ ] Define `query_ledger` schema.
-- [ ] Define `forecast_cashflow` schema.
-- [ ] Define `check_gst_match` schema.
-- [ ] Define `detect_anomalies` schema.
-- [ ] Define `propose_journal_entry` schema.
+- [x] Define `run_reconciliation` schema.
+- [x] Define `query_ledger` schema.
+- [x] Define `forecast_cashflow` schema.
+- [x] Define `check_gst_match` schema.
+- [x] Define `detect_anomalies` schema.
+- [x] Define `propose_journal_entry` schema. *(all six live in tool_registry.py TOOL_REGISTRY with READ/PROPOSE permission classes)*
 
 ## Controller loop
 
-- [ ] Send user message to Gemini.
-- [ ] Provide tool definitions.
-- [ ] Detect function/tool calls.
-- [ ] Validate tool arguments.
-- [ ] Dispatch through registry.
-- [ ] Append tool results to conversation.
-- [ ] Continue until final response.
-- [ ] Add bounded maximum tool calls per run.
-- [ ] Handle malformed tool arguments.
-- [ ] Handle tool exceptions.
-- [ ] Persist run and tool-call data.
-- [ ] Return final response plus evidence/tool metadata.
+- [x] Send user message to Gemini.
+- [x] Provide tool definitions.
+- [x] Detect function/tool calls.
+- [x] Validate tool arguments.
+- [x] Dispatch through registry. *(single dispatch_tool entry point — no if/else chains in the loop)*
+- [x] Append tool results to conversation.
+- [x] Continue until final response.
+- [x] Add bounded maximum tool calls per run. *(AGENT_MAX_TOOL_CALLS, default 12; excess calls never dispatched, run ends tool_limit with a deterministic summary)*
+- [x] Handle malformed tool arguments. *(structured INVALID_ARGUMENTS error envelope, rolled back session)*
+- [x] Handle tool exceptions. *(structured UNKNOWN_TOOL / VALIDATION_ERROR / TOOL_FAILURE envelopes — the model is told a tool failed)*
+- [x] Persist run and tool-call data. *(agent_runs + tool_calls rows, one per executed call)*
+- [x] Return final response plus evidence/tool metadata. *(run_id, status, answer, tools_used, tool_calls trace, record-id evidence, latency)*
 
 ## System prompt
 
-- [ ] Add evidence-first rules.
-- [ ] Add no-fabrication rule.
-- [ ] Add safe-write rule.
-- [ ] Add unresolved-exception rule.
-- [ ] Add distinction between deterministic and ML signals.
+- [x] Add evidence-first rules. *(prompts.py rule 3/4: prefer evidence, explain via record IDs and tool-computed amounts)*
+- [x] Add no-fabrication rule. *(rule 1: every number comes from a tool result)*
+- [x] Add safe-write rule. *(rule 7: propose_journal_entry only drafts; posting requires human approval)*
+- [x] Add unresolved-exception rule. *(rule 9: keep unresolved exceptions visible)*
+- [x] Add distinction between deterministic and ML signals. *(rule 5 + per-tool guidance; detect_anomalies "alongside, never replacing")*
 
 ### First milestone
 
