@@ -20,7 +20,8 @@ backend tools decide the **financial facts**. A human decides whether
 **Phase 0 — project scaffold**, **Phase 1 — data foundation**, **Phase 2 — database**,
 **Phase 3 — deterministic finance engine**, **Phase 4 — forecasting module**,
 **Phase 5 — ML anomaly detection**, **Phase 6 — Gemini tool-calling agent**,
-**Phase 7 — multi-turn agent state**, and **Phase 8 — action layer** are complete:
+**Phase 7 — multi-turn agent state**, **Phase 8 — action layer**, and
+**Phase 9 — FastAPI APIs** are complete:
 
 - FastAPI backend skeleton with an application factory and CORS
 - `GET /health` liveness endpoint
@@ -52,9 +53,17 @@ backend tools decide the **financial facts**. A human decides whether
   `POST /api/actions/{proposal_id}/approve|reject|rollback`): idempotency-keyed
   decisions, mock-ledger posting, a full audit trail, and an append-only
   rollback path — the only code that writes ledger rows, never model-callable
+- Full REST read/report surface (`app/api/routes/`): the complete PRD
+  section-16 API — `POST /api/reconciliation/run` (engine + persisted
+  exception ids), `GET /api/ledger/query`, `GET /api/forecast`,
+  `GET /api/anomalies` (read-only scoring), `GET /api/exceptions` (persisted
+  rows), `GET /api/runs/{run_id}` (trace + transcript), `GET /api/audit`
+  (decision trail), and `GET /api/metrics` (dashboard KPI cards) — every
+  endpoint a thin wrapper over the same deterministic tools/services the
+  agent uses, with guard envelopes, 422 validation, and 404 semantics
 - Test suite runnable with pytest (35 dataset + 2 health + 21 database
   + 27 engine + 29 forecast + 32 anomaly + 31 agent + 12 multi-turn
-  + 14 action tests — 203 total, all offline)
+  + 14 action + 29 API tests — 232 total, all offline)
 
 All financial data in this system is **synthetic** and produced by a seeded
 dataset generator. Nothing here moves real money.
@@ -268,7 +277,9 @@ backend/
   app/
     main.py            FastAPI application factory
     config.py          environment-based settings (pydantic + dotenv)
-    api/routes/        HTTP routers (health now; agent/recon/ledger/... later)
+    api/routes/        HTTP routers (health, agent chat, actions, and the
+                       Phase 9 read/report surface: reconciliation, ledger,
+                       forecast, anomalies, exceptions, runs, audit, metrics)
     api/schemas/       shared request/response schemas
     agent/             controller loop, tool registry, LLM provider adapters
     tools/             deterministic finance tools

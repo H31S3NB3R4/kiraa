@@ -46,6 +46,7 @@ __all__ = [
     "TOOL_DECLARATIONS",
     "TOOL_PERMISSIONS",
     "dispatch_tool",
+    "enrich_reconciliation_result",
 ]
 
 # Permission classes (architecture section 5).
@@ -233,13 +234,16 @@ def _error_envelope(
     return envelope
 
 
-def _enrich_reconciliation_result(result: dict[str, Any], db: Session) -> dict[str, Any]:
+def enrich_reconciliation_result(result: dict[str, Any], db: Session) -> dict[str, Any]:
     """Attach persisted ``exception_id``s to a fresh reconciliation result.
 
     The engine payload identifies exceptions by
     ``(transaction_id, exception_type)``; ``propose_journal_entry`` needs
     the persisted row id. The mapping is exact (both tables share the
     ``exception_type`` taxonomy) so each exception gains ``exception_id``.
+
+    Shared by the agent dispatch path and the Phase 9 reconciliation API
+    route so both surfaces return the same enriched payload.
     """
     pairs: list[tuple[str, str]] = [
         (exc["transaction_id"], exc["exception_type"])
@@ -337,6 +341,6 @@ def dispatch_tool(
         )
 
     if name == "run_reconciliation":
-        result = _enrich_reconciliation_result(result, db)
+        result = enrich_reconciliation_result(result, db)
     result.setdefault("latency_ms", round((time.perf_counter() - started) * 1000.0, 2))
     return result

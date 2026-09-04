@@ -355,18 +355,18 @@ User: Investigate the top one.
 
 # Phase 9 — FastAPI APIs
 
-- [ ] `POST /api/agent/chat`
-- [ ] `POST /api/reconciliation/run`
-- [ ] `GET /api/ledger/query`
-- [ ] `GET /api/forecast`
-- [ ] `GET /api/anomalies`
-- [ ] `GET /api/exceptions`
-- [ ] `GET /api/runs/{run_id}`
-- [ ] `POST /api/actions/{proposal_id}/approve`
-- [ ] `POST /api/actions/{proposal_id}/reject`
-- [ ] `POST /api/actions/{proposal_id}/rollback`
-- [ ] `GET /api/audit`
-- [ ] `GET /api/metrics`
+- [x] `POST /api/agent/chat` *(Phase 6/7; provider built from settings, 503 when GEMINI_API_KEY is unset, 404 on unknown run_id)*
+- [x] `POST /api/reconciliation/run` *(wraps the deterministic engine; optional merchant/date scope + persist flag; response mirrors the tool payload enriched with persisted exception_ids via the shared registry helper; ValueError → 422; idempotent upserts — new/updated counts, never duplicates)*
+- [x] `GET /api/ledger/query` *(HTTP twin of the READ tool: merchant/transaction/date/status/account/category filters, source-linked rows, limit+truncated; inverted ranges → 422)*
+- [x] `GET /api/forecast` *(wraps forecast_cashflow — pooled or per-merchant, horizon/history/threshold params; guard envelopes unknown_merchant/no_history return 200; out-of-range horizons → 422)*
+- [x] `GET /api/anomalies` *(wraps detect_anomalies with persist=False — a GET never writes anomaly_scores; merchant/transaction filters, limit; guard envelopes 200; limit=0 → 422)*
+- [x] `GET /api/exceptions` *(lists persisted reconciliation_exceptions joined to transactions (merchant scope), newest first, type/severity/status/txn/date filters, limit+truncated; inverted ranges → 422)*
+- [x] `GET /api/runs/{run_id}` *(one agent run + tool-call trace + full transcript; unknown ids → 404)*
+- [x] `POST /api/actions/{proposal_id}/approve` *(Phase 8)*
+- [x] `POST /api/actions/{proposal_id}/reject` *(Phase 8)*
+- [x] `POST /api/actions/{proposal_id}/rollback` *(Phase 8)*
+- [x] `GET /api/audit` *(append-only audit_events trail — action/actor/object/run filters, newest first, before/after states)*
+- [x] `GET /api/metrics` *(KPI cards: pooled closing-balance cash as of the latest cash-flow day, fresh read-only reconciliation pass (match rate / exception count / impact at risk), pending proposals; unknown merchant → 404)*
 
 ---
 
