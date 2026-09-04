@@ -18,8 +18,9 @@ backend tools decide the **financial facts**. A human decides whether
 ## Current status
 
 **Phase 0 — project scaffold**, **Phase 1 — data foundation**, **Phase 2 — database**,
-**Phase 3 — deterministic finance engine**, **Phase 4 — forecasting module**, and
-**Phase 5 — ML anomaly detection** are complete:
+**Phase 3 — deterministic finance engine**, **Phase 4 — forecasting module**,
+**Phase 5 — ML anomaly detection**, **Phase 6 — Gemini tool-calling agent**,
+**Phase 7 — multi-turn agent state**, and **Phase 8 — action layer** are complete:
 
 - FastAPI backend skeleton with an application factory and CORS
 - `GET /health` liveness endpoint
@@ -43,8 +44,17 @@ backend tools decide the **financial facts**. A human decides whether
   baseline, and ground-truth metrics — validated at **100% precision and
   recall with zero false positives** (dev dataset, 500-txn benchmark, and
   unseen seeds)
+- Gemini tool-calling agent (`app/agent/`): provider-agnostic `LLMProvider`
+  with a Gemini adapter, six READ/PROPOSE tools returning structured
+  envelopes, a bounded controller loop, `POST /api/agent/chat`, and multi-turn
+  runs (`run_id` continuation with a persisted transcript and bounded replay)
+- Human-gated action layer (`app/services/actions.py` +
+  `POST /api/actions/{proposal_id}/approve|reject|rollback`): idempotency-keyed
+  decisions, mock-ledger posting, a full audit trail, and an append-only
+  rollback path — the only code that writes ledger rows, never model-callable
 - Test suite runnable with pytest (35 dataset + 2 health + 21 database
-  + 27 engine + 29 forecast + 32 anomaly tests)
+  + 27 engine + 29 forecast + 32 anomaly + 31 agent + 12 multi-turn
+  + 14 action tests — 203 total, all offline)
 
 All financial data in this system is **synthetic** and produced by a seeded
 dataset generator. Nothing here moves real money.
@@ -208,6 +218,49 @@ The versioned artifact lives at `backend/ml/artifacts/iforest-v1.joblib`
 (gitignored); the in-process fallback retrains to the identical bundle, so
 results reproduce exactly with or without the binary.
 
+## Action layer: approve / reject / rollback (Phase 8)
+
+`app/services/actions.py` is the **only** code that writes ledger rows (the
+seeder aside). Its three operations — exposed at
+`POST /api/actions/{proposal_id}/approve|reject|rollback` and deliberately
+absent from the agent tool registry — take a proposal from `pending` through
+the human decision gate:
+
+- **approve** re-validates the proposal server-side (positive amount, distinct
+  non-empty debit/credit accounts, linked transaction — a model-drafted
+  payload is never trusted), posts exactly one `LE-MOCK-` correction
+  `LedgerEntry` (`status='posted'`; the prefix can never collide with the
+  seeded `LE-3xxx` sequence), records the `Approval` with the request's
+  idempotency key and the posted entry id, and appends a `proposal.approve`
+  audit event with before/after states.
+- **idempotency** (PRD section 14): every write body carries an
+  `idempotency_key` (8–64 chars). A replayed key returns the stored outcome —
+  `idempotent_replay: true`, no second ledger entry, no second approval, one
+  replay-marker audit event. Re-deciding a decided proposal under a *different*
+  key is refused (409), so duplicate approvals can never double-post; a key
+  spent on another write or proposal is refused too.
+- **reject** records the decision (plus optional note) and a
+  `proposal.reject` audit event — the ledger is never touched. Approve after
+  reject and reject after approve are both refused (409 state machine).
+- **rollback** (PRD section 15): `approved → rolled_back`. The posted entry
+  flips to `status='reversed'` (append-only — the row stays queryable), the
+  proposal is marked `rolled_back`, and the transition is audited. Duplicate
+  rollbacks replay; only approved proposals can be rolled back.
+- **failure branch** (architecture section 10): `simulate_failure=true` on
+  approve fails the post atomically — no approval, no ledger entry, no audit
+  event — and the same idempotency key succeeds on retry (the key was never
+  spent).
+
+Typed service errors map onto HTTP codes: 404 unknown proposal, 409 wrong
+lifecycle state / key conflict, 422 unpostable proposal or bad fields, 502
+failed ledger post. The routes stay thin — validation, posting, and audit
+live in the service, which is unit-testable without FastAPI.
+
+The safety gate is enforced structurally: the six model-callable tools
+contain no action verbs, `TOOL_REGISTRY` carries no WRITE-class callable, the
+agent layer never imports `app.services.actions`, and an "approve it" chat
+message leaves proposals pending and the ledger untouched.
+
 ## Repository layout
 
 ```text
@@ -219,7 +272,7 @@ backend/
     api/schemas/       shared request/response schemas
     agent/             controller loop, tool registry, LLM provider adapters
     tools/             deterministic finance tools
-    services/          cross-cutting services (dataset generator, DB seeding; audit/approvals later)
+    services/          cross-cutting services (dataset generator, DB seeding, action layer)
     models/            SQLAlchemy ORM models (18 tables, Base + TimestampMixin)
     db/                engine, session, create_all/drop_all
   ml/                  anomaly model training + artifacts

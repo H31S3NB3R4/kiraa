@@ -329,27 +329,27 @@ User: Investigate the top one.
 
 ## Journal proposal
 
-- [ ] Implement proposal schema.
-- [ ] Validate amount/account fields.
-- [ ] Include evidence IDs.
-- [ ] Include confidence.
-- [ ] Generate proposal from a verified exception.
+- [x] Implement proposal schema. *(journal_proposals rows drafted by the Phase 6 `propose_journal_entry` tool; Phase 8 adds the decision side — `approvals.idempotency_key` under a unique index + `ledger_entry_id` linking the posted correction entry)*
+- [x] Validate amount/account fields. *(approve re-validates server-side: positive amount, distinct non-empty debit/credit accounts, linked transaction — `ActionValidationError` → 422; the model-drafted payload is never trusted)*
+- [x] Include evidence IDs. *(evidence_ids carry the source transaction + settlement/invoice refs since Phase 6; Phase 8 audit events add before/after states)*
+- [x] Include confidence. *(severity-derived confidence on every proposal since Phase 6, surfaced in the tool payload)*
+- [x] Generate proposal from a verified exception. *(one pending proposal per verified exception, deduplicated while pending — PRD section 14)*
 
 ## Approval
 
-- [ ] Add approve endpoint.
-- [ ] Add reject endpoint.
-- [ ] Add mock ledger API.
-- [ ] Add idempotency key.
-- [ ] Ensure duplicate approval does not double-post.
-- [ ] Create audit event on approval.
-- [ ] Create audit event on rejection.
-- [ ] Implement rollback endpoint.
-- [ ] Simulate failure and test recovery.
+- [x] Add approve endpoint. *(POST /api/actions/{proposal_id}/approve → app/services/actions.py + app/api/routes/actions.py; routes stay thin so the service is unit-testable)*
+- [x] Add reject endpoint. *(POST .../reject records the decision + audit event and never touches the ledger)*
+- [x] Add mock ledger API. *(approve posts exactly one `LE-MOCK-` correction `LedgerEntry` — status='posted', prefix can never collide with the seeded LE-3xxx sequence)*
+- [x] Add idempotency key. *(required on every write body (8–64 chars, pydantic-validated); unique index on approvals.idempotency_key + prior-rollback-event lookup make every write replay-safe)*
+- [x] Ensure duplicate approval does not double-post. *(same key replays the stored outcome — idempotent_replay=true, no second entry/approval, one replay-marker audit event; re-deciding under a different key → 409)*
+- [x] Create audit event on approval. *(proposal.approve with before/after states, actor, object, and run link)*
+- [x] Create audit event on rejection. *(proposal.reject carries the optional reviewer note in after_state)*
+- [x] Implement rollback endpoint. *(POST .../rollback — approved → rolled_back; the posted entry flips to reversed (append-only, stays queryable), duplicate keys replay, and keys spent on other writes/proposals are refused)*
+- [x] Simulate failure and test recovery. *(simulate_failure=true → MockLedgerError/502: no approval, no entry, no audit event applied; the same idempotency key succeeds on retry)*
 
 ### Critical rule
 
-- [ ] Confirm that no natural-language request can bypass human approval.
+- [x] Confirm that no natural-language request can bypass human approval. *(the six model-callable tools contain no action verbs and TOOL_REGISTRY has no WRITE-class callable; a jailbreak chat asking to `post_journal_entry` leaves proposals pending and the ledger untouched — the agent layer never imports app.services.actions)*
 
 ---
 
@@ -510,11 +510,11 @@ Do not invent these numbers for the pitch. Run the benchmark and report the actu
 - [ ] Remove hard-coded API keys.
 - [ ] Verify `.env` is ignored.
 - [ ] Avoid credentials in logs.
-- [ ] Separate READ and WRITE permissions.
-- [ ] Require human approval for mock ledger writes.
-- [ ] Validate journal amounts server-side.
-- [ ] Validate idempotency server-side.
-- [ ] Add audit record for every action.
+- [x] Separate READ and WRITE permissions. *(READ/PROPOSE tools model-callable via TOOL_REGISTRY; WRITE lives only in app/services/actions.py behind POST /api/actions/*, never imported by the agent layer)*
+- [x] Require human approval for mock ledger writes. *(pending → approved only through POST /api/actions/{id}/approve with approver + idempotency_key; no tool or chat path can post)*
+- [x] Validate journal amounts server-side. *(approve re-checks positive amount, distinct non-empty accounts, and linked transaction — ActionValidationError → 422)*
+- [x] Validate idempotency server-side. *(unique approvals.idempotency_key index + prior-event rollback lookup; duplicates replay, key reuse on other writes → 409 IdempotencyConflictError)*
+- [x] Add audit record for every action. *(proposal.approve / proposal.reject / proposal.rollback events with actor, object, before/after states — plus replay-marker events for duplicate requests)*
 - [ ] Make synthetic/demo nature clear.
 - [ ] Prevent model-generated numbers from being treated as authoritative financial values.
 

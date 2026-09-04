@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import agent, health
+from app.api.routes import actions, agent, health
 from app.config import get_settings
 
 
@@ -32,10 +32,11 @@ def create_app() -> FastAPI:
     )
 
     # Routers are registered here as phases land
-    # (reconciliation, ledger, forecast, anomalies, actions, audit,
+    # (reconciliation, ledger, forecast, anomalies, audit,
     # metrics — Phase 9+).
     app.include_router(health.router, tags=["health"])
     app.include_router(agent.router, tags=["agent"])
+    app.include_router(actions.router, tags=["actions"])
 
     return app
 
