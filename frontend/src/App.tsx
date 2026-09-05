@@ -98,7 +98,9 @@ export default function App() {
             ))}
           </nav>
           <p className="px-4 py-3 text-[10px] leading-relaxed text-slate-400">
-            Read-only by default — ledger writes happen only through the reviewed Actions flow.
+            Synthetic demo data — nothing here moves real money. Read-only by
+            default; ledger writes happen only through the reviewed Actions
+            flow.
           </p>
         </aside>
 
@@ -139,8 +141,13 @@ export default function App() {
                 className="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs text-slate-800 shadow-sm"
               />
             </label>
-            <span className="ml-auto font-mono text-[10px] text-slate-400">
-              {merchantId ?? 'all merchants'}
+            <span className="ml-auto flex items-center gap-2">
+              <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700 ring-1 ring-amber-200">
+                synthetic demo data
+              </span>
+              <span className="font-mono text-[10px] text-slate-400">
+                {merchantId ?? 'all merchants'}
+              </span>
             </span>
           </header>
 

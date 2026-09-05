@@ -19,7 +19,7 @@ from app.agent.controller import AgentController, AgentRunNotFoundError
 from app.agent.providers.base import LLMProvider, LLMProviderError
 from app.agent.providers.gemini import GeminiProvider
 from app.api.schemas.agent import AgentChatRequest, AgentChatResponse
-from app.config import get_settings
+from app.config import get_settings, redact_secrets
 from app.db.session import get_db
 from sqlalchemy.orm import Session
 
@@ -46,7 +46,8 @@ def get_provider() -> LLMProvider:
     except LLMProviderError as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=f"LLM provider unavailable: {exc}",
+            # Phase 14: never let SDK exception text leak a configured secret.
+            detail=f"LLM provider unavailable: {redact_secrets(str(exc))}",
         ) from exc
 
 

@@ -23,5 +23,7 @@ def health() -> dict:
         "status": "ok",
         "app": settings.app_name,
         "environment": settings.environment,
+        # Phase 14: every record is seeded synthetic demo data.
+        "data": "synthetic",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }

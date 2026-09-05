@@ -26,6 +26,7 @@ from pathlib import Path
 # Allow running as a plain script: make ``backend/`` importable.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app.config import redact_credentials  # noqa: E402
 from app.services.db_seed import (  # noqa: E402
     SeedError,
     build_engine,
@@ -106,7 +107,7 @@ def main(argv: list[str] | None = None) -> int:
             f"  dataset : {args.dataset} "
             f"(seed {meta.get('seed')}, {meta.get('transactions')} transactions)"
         )
-        print(f"  database: {url}")
+        print(f"  database: {redact_credentials(url)}")
         print()
         print(benchmark_table(report))
         print()

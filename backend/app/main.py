@@ -34,7 +34,8 @@ def create_app() -> FastAPI:
         description=(
             "Agentic finance-operations controller: reconciliation, ledger, "
             "forecast, GST matching, anomaly detection, and safe (human-"
-            "approved) journal actions."
+            "approved) journal actions. All financial data is synthetic "
+            "(seeded demo dataset) — nothing here moves real money."
         ),
     )
 

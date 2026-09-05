@@ -8,10 +8,12 @@ never hard-coded; see `.env.example` for every supported variable.
 from __future__ import annotations
 
 import os
+import re
 from functools import lru_cache
 
 from dotenv import load_dotenv
 from pydantic import BaseModel, Field
+from sqlalchemy.engine import make_url
 
 # Repository root (backend/app/config.py -> backend/app -> backend -> root).
 _REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
@@ -95,3 +97,31 @@ def get_settings() -> Settings:
         tool_timeout_seconds=float(os.getenv("TOOL_TIMEOUT_SECONDS", "30")),
         operating_threshold=float(os.getenv("OPERATING_THRESHOLD", "50000")),
     )
+
+
+def redact_credentials(url: str) -> str:
+    """Return ``url`` with any embedded database password masked (Phase 14).
+
+    A ``DATABASE_URL`` can carry credentials (``postgresql://user:pass@host``)
+    that must never reach CLI output or logs. SQLAlchemy renders the masked
+    form when the URL parses; anything unparseable falls back to a
+    ``://user:***@`` substitution so an odd string cannot leak either.
+    """
+    try:
+        return make_url(url).render_as_string(hide_password=True)
+    except Exception:  # noqa: BLE001 - not a parseable SQLAlchemy URL
+        return re.sub(r"(://[^/@:]+:)[^@]+@", r"\1***@", url)
+
+
+def redact_secrets(text: str) -> str:
+    """Mask configured secret values (the Gemini API key) in message text.
+
+    Provider/SDK exception text can echo request details; the controller and
+    the agent route pass every error destined for a log line, the stored
+    ``agent_runs`` trace, or an HTTP response through this filter so the
+    configured key can never survive into any of them (Phase 14).
+    """
+    key = get_settings().gemini_api_key
+    if key and key in text:
+        return text.replace(key, "***")
+    return text

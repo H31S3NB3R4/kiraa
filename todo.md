@@ -507,16 +507,16 @@ Do not invent these numbers for the pitch. Run the benchmark and report the actu
 
 # Phase 14 — Security / Safety Review
 
-- [ ] Remove hard-coded API keys.
-- [ ] Verify `.env` is ignored.
-- [ ] Avoid credentials in logs.
+- [x] Remove hard-coded API keys. *(verified by scan — `test_phase14_security.py` rejects Gemini-key-shaped literals across all backend/frontend source; `Settings.gemini_api_key` defaults empty, so the key can only arrive via the environment)*
+- [x] Verify `.env` is ignored. *(gitignore `.env`/`.env.*` with `!.env.example`; `git check-ignore .env` exit 0 and `git ls-files` shows only `.env.example` — asserted in the Phase 14 suite)*
+- [x] Avoid credentials in logs. *(`redact_credentials`/`redact_secrets` in `app/config.py`: CLIs print the password-masked DATABASE_URL; provider errors are filtered before the warning log, the stored `agent_runs.error` trace, and the 503 detail)*
 - [x] Separate READ and WRITE permissions. *(READ/PROPOSE tools model-callable via TOOL_REGISTRY; WRITE lives only in app/services/actions.py behind POST /api/actions/*, never imported by the agent layer)*
 - [x] Require human approval for mock ledger writes. *(pending → approved only through POST /api/actions/{id}/approve with approver + idempotency_key; no tool or chat path can post)*
 - [x] Validate journal amounts server-side. *(approve re-checks positive amount, distinct non-empty accounts, and linked transaction — ActionValidationError → 422)*
 - [x] Validate idempotency server-side. *(unique approvals.idempotency_key index + prior-event rollback lookup; duplicates replay, key reuse on other writes → 409 IdempotencyConflictError)*
 - [x] Add audit record for every action. *(proposal.approve / proposal.reject / proposal.rollback events with actor, object, before/after states — plus replay-marker events for duplicate requests)*
-- [ ] Make synthetic/demo nature clear.
-- [ ] Prevent model-generated numbers from being treated as authoritative financial values.
+- [x] Make synthetic/demo nature clear. *(`GET /health` returns `data: "synthetic"`; OpenAPI description states it; dashboard header badge + sidebar note; system prompt and every CLI banner already declared it)*
+- [x] Prevent model-generated numbers from being treated as authoritative financial values. *(propose tool schema exposes only `exception_id`/`reason`; dispatch rejects injected `amount`/account args with INVALID_ARGUMENTS; amount/accounts/confidence derive deterministically from the exception row — a decoy number in `reason` never becomes a financial field; Phase 14 tests)*
 
 ---
 

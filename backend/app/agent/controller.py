@@ -68,7 +68,7 @@ from app.agent.providers.base import (
 )
 from app.agent.prompts import build_system_prompt
 from app.agent.tool_registry import TOOL_DECLARATIONS, dispatch_tool
-from app.config import get_settings
+from app.config import get_settings, redact_secrets
 from app.models import AgentMessage, AgentRun, ToolCall
 
 logger = logging.getLogger(__name__)
@@ -398,7 +398,11 @@ class AgentController:
         try:
             self._loop(run, messages, system_instruction)
         except LLMProviderError as exc:
-            logger.warning("agent run %s failed: %s", run.run_id, exc)
+            # Phase 14: provider/SDK exception text can echo request details;
+            # filter configured secrets before the log line and the stored
+            # run trace (GET /api/runs/{run_id} serves this field).
+            safe_error = redact_secrets(str(exc))
+            logger.warning("agent run %s failed: %s", run.run_id, safe_error)
             answer = (
                 "The AI model is temporarily unavailable, so I could not "
                 "complete this investigation. The run trace is preserved "
@@ -415,7 +419,7 @@ class AgentController:
                 run,
                 status=STATUS_MODEL_ERROR,
                 answer=None,
-                error=str(exc),
+                error=safe_error,
                 total_llm_latency_ms=self._llm_latency,
             )
         else:
