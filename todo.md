@@ -18,8 +18,8 @@ Legend:
 - [x] Create repository structure.
 - [x] Initialize Python virtual environment. *(pre-existing `.venv`, Python 3.13.14)*
 - [x] Create FastAPI backend.
-- [ ] Create React/Vite frontend. *(placeholder dir only; scaffolded in Phase 10)*
-- [ ] Add Tailwind CSS. *(with frontend scaffold)*
+- [x] Create React/Vite frontend. *(React 19 + Vite 6 + TypeScript scaffold; Phase 10 dashboard)*
+- [x] Add Tailwind CSS. *(Tailwind 3, slate/indigo design system in `frontend/src/index.css`)*
 - [x] Add PostgreSQL or SQLite for the first local prototype. *(SQLite default via `DATABASE_URL`; `psycopg` driver installed for later PostgreSQL switch)*
 - [x] Create `.env.example`.
 - [x] Add Gemini API key configuration. *(env var `GEMINI_API_KEY`; key supplied by user in Phase 6)*
@@ -374,69 +374,69 @@ User: Investigate the top one.
 
 ## Shell
 
-- [ ] Finance Control Center layout.
-- [ ] Sidebar/top navigation.
-- [ ] Current merchant selector if needed.
-- [ ] Global date range.
-- [ ] Agent chat panel.
+- [x] Finance Control Center layout. *(React 19 + Vite + TS; sidebar shell + scrollable main + right agent aside, `App.tsx`)*
+- [x] Sidebar/top navigation. *(6 NavLink routes with lucide icons: Dashboard, Reconciliation, Forecast, Anomalies, Actions, Audit)*
+- [x] Current merchant selector if needed. *(global header select fed by `GET /api/merchants`)*
+- [x] Global date range. *(From/To date inputs; merchant + dates flow to every page via `ScopeContext`)*
+- [x] Agent chat panel. *(right `w-96` aside — AgentPanel, hidden below `lg`)*
 
 ## KPI cards
 
-- [ ] Total cash.
-- [ ] Reconciliation match rate.
-- [ ] Exception count.
-- [ ] Financial impact at risk.
+- [x] Total cash. *(from `GET /api/metrics`)*
+- [x] Reconciliation match rate.
+- [x] Exception count.
+- [x] Financial impact at risk. *(plus top-open-exceptions preview ranked by impact)*
 
 ## Reconciliation view
 
-- [ ] Matched count.
-- [ ] Unmatched count.
-- [ ] Match rate.
-- [ ] Exception list.
-- [ ] Filters.
+- [x] Matched count. *(run-response aggregates)*
+- [x] Unmatched count.
+- [x] Match rate.
+- [x] Exception list. *(persisted rows from `GET /api/exceptions`)*
+- [x] Filters. *(severity + status selects; plus "run fresh reconciliation" button → `POST /api/reconciliation/run`)*
 
 ## Forecast view
 
-- [ ] Seven-day line chart.
-- [ ] Risk indicator.
-- [ ] Projected minimum cash.
-- [ ] Forecast drivers.
+- [x] Seven-day line chart. *(recharts LineChart over the chart-ready series; horizon selector)*
+- [x] Risk indicator. *(LOW/MEDIUM/HIGH badge + risk reason)*
+- [x] Projected minimum cash. *(min of the projected walk vs operating threshold)*
+- [x] Forecast drivers. *(inflow/outflow components, net trend, history window, threshold)*
 
 ## Anomaly view
 
-- [ ] Anomaly score.
-- [ ] Transaction details.
-- [ ] Compare normal vs unusual attributes.
+- [x] Anomaly score. *(from `GET /api/anomalies`, read-only scoring)*
+- [x] Transaction details. *(amount vs merchant baseline, severity band, reason metadata)*
+- [x] Compare normal vs unusual attributes. *(model-baseline stats vs observed per feature)*
 
 ## Action view
 
-- [ ] Journal proposal card.
-- [ ] Evidence section.
-- [ ] Approve button.
-- [ ] Reject button.
-- [ ] Rollback status.
+- [x] Journal proposal card. *(from `GET /api/proposals` with status badges)*
+- [x] Evidence section. *(record ids + narrative verbatim from the proposal payload)*
+- [x] Approve button. *(→ `POST /api/actions/{id}/approve`)*
+- [x] Reject button. *(→ `POST /api/actions/{id}/reject`)*
+- [x] Rollback status. *(→ `POST /api/actions/{id}/rollback`; idempotency-keyed, audit-trailed)*
 
 ## Audit view
 
-- [ ] Run history.
-- [ ] Tool sequence.
-- [ ] Action history.
-- [ ] Approval history.
+- [x] Run history. *(run rows from `GET /api/runs`, expandable)*
+- [x] Tool sequence. *(per-run `GET /api/runs/{run_id}` trace: args, latency, status, impact)*
+- [x] Action history. *(audit-event table incl. proposal approve/reject/rollback)*
+- [x] Approval history. *(decisions with actor, idempotency key, timestamp)*
 
 ---
 
 # Phase 11 — Agent Experience / Demo Polish
 
-- [ ] Show which tools are being used.
-- [ ] Show tool status: running / completed / failed.
-- [ ] Show evidence links in agent responses.
-- [ ] Show record IDs and monetary impact.
-- [ ] Clearly label ML anomaly vs deterministic exception.
-- [ ] Make final response concise and finance-oriented.
-- [ ] Add loading state.
-- [ ] Add error state.
-- [ ] Add empty state.
-- [ ] Add sample prompts on first load.
+- [x] Show which tools are being used. *(tool timeline in AgentPanel + per-run trace in AuditPage)*
+- [x] Show tool status: running / completed / failed. *(status badge, latency ms, error text per call)*
+- [x] Show evidence links in agent responses. *(evidence chips for record ids touched by the run)*
+- [x] Show record IDs and monetary impact. *(ids verbatim; impact figures surfaced from tool output)*
+- [x] Clearly label ML anomaly vs deterministic exception. *(distinct badges — `ML_TOOLS` vs deterministic engine tools, in both AgentPanel and AuditPage)*
+- [x] Make final response concise and finance-oriented. *(system-prompt behavioural contract, Phase 6)*
+- [x] Add loading state. *(shared `Loading` component on every page; chat "thinking" state)*
+- [x] Add error state. *(shared `ErrorState` with retry on every page)*
+- [x] Add empty state. *(shared `EmptyState` with guidance text on every page)*
+- [x] Add sample prompts on first load. *(clickable `SAMPLE_PROMPTS` in AgentPanel empty state)*
 
 Suggested sample prompts:
 

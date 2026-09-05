@@ -23,6 +23,8 @@ backend/ml/artifacts/*
 node_modules/
 frontend/dist/
 frontend/.vite/
+*.tsbuildinfo
+*.log
 
 # --- Tooling / OS / IDE ---------------------------------------------
 .pytest_cache/

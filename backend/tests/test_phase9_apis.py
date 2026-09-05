@@ -139,7 +139,11 @@ def http(seeded) -> Iterator[TestClient]:
 
 
 def test_openapi_exposes_the_prd_section_16_surface() -> None:
-    """The app registers exactly the PRD section-16 API plus /health."""
+    """The app registers exactly the PRD section-16 API plus /health.
+
+    Phase 10 adds the dashboard-support listings (``/api/proposals``,
+    ``/api/merchants``, ``/api/runs``) on top of the PRD surface.
+    """
     paths = set(app.openapi()["paths"])
     expected = {
         "/health",
@@ -149,12 +153,15 @@ def test_openapi_exposes_the_prd_section_16_surface() -> None:
         "/api/forecast",
         "/api/anomalies",
         "/api/exceptions",
+        "/api/runs",
         "/api/runs/{run_id}",
         "/api/actions/{proposal_id}/approve",
         "/api/actions/{proposal_id}/reject",
         "/api/actions/{proposal_id}/rollback",
         "/api/audit",
         "/api/metrics",
+        "/api/proposals",
+        "/api/merchants",
     }
     assert paths == expected
 

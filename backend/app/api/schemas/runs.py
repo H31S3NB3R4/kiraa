@@ -48,3 +48,23 @@ class RunDetailResponse(BaseModel):
     finished_at: datetime | None = None
     tool_calls: list[RunToolCall] = Field(default_factory=list)
     messages: list[RunMessage] = Field(default_factory=list)
+
+
+class RunSummaryRow(BaseModel):
+    """One agent-run row in the history listing (no transcript payload)."""
+
+    run_id: str
+    user_query: str
+    status: str
+    turn_count: int = 1
+    tool_call_count: int = 0
+
+
+class RunsListResponse(BaseModel):
+    """``GET /api/runs`` response body (list envelope convention)."""
+
+    count: int = 0
+    limit: int | None = None
+    truncated: bool = False
+    filters: dict[str, Any] = Field(default_factory=dict)
+    rows: list[RunSummaryRow] = Field(default_factory=list)

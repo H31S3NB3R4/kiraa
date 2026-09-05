@@ -14,7 +14,9 @@ from app.api.routes import (
     forecast,
     health,
     ledger,
+    merchants,
     metrics,
+    proposals,
     reconciliation,
     runs,
 )
@@ -55,6 +57,8 @@ def create_app() -> FastAPI:
     app.include_router(runs.router, tags=["runs"])
     app.include_router(audit.router, tags=["audit"])
     app.include_router(metrics.router, tags=["metrics"])
+    app.include_router(proposals.router, tags=["proposals"])
+    app.include_router(merchants.router, tags=["merchants"])
 
     return app
 

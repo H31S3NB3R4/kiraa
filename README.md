@@ -20,8 +20,9 @@ backend tools decide the **financial facts**. A human decides whether
 **Phase 0 — project scaffold**, **Phase 1 — data foundation**, **Phase 2 — database**,
 **Phase 3 — deterministic finance engine**, **Phase 4 — forecasting module**,
 **Phase 5 — ML anomaly detection**, **Phase 6 — Gemini tool-calling agent**,
-**Phase 7 — multi-turn agent state**, **Phase 8 — action layer**, and
-**Phase 9 — FastAPI APIs** are complete:
+**Phase 7 — multi-turn agent state**, **Phase 8 — action layer**,
+**Phase 9 — FastAPI APIs**, **Phase 10 — frontend dashboard**, and
+**Phase 11 — agent experience** are complete:
 
 - FastAPI backend skeleton with an application factory and CORS
 - `GET /health` liveness endpoint
@@ -61,9 +62,17 @@ backend tools decide the **financial facts**. A human decides whether
   (decision trail), and `GET /api/metrics` (dashboard KPI cards) — every
   endpoint a thin wrapper over the same deterministic tools/services the
   agent uses, with guard envelopes, 422 validation, and 404 semantics
+- Phase 10 endpoints: `GET /api/merchants` (merchant picker) and
+  `GET /api/proposals` (action-queue cards) — same thin-wrapper pattern
+- React dashboard (`frontend/`): Vite + TypeScript + Tailwind, six pages
+  (Dashboard KPIs, Reconciliation, Forecast, Anomalies, Actions, Audit)
+  behind a global merchant/date scope, an axios client over the 16-endpoint
+  REST surface, and the agent chat panel (AgentPanel) with tool timeline,
+  evidence chips, ML-vs-deterministic labels, loading/error/empty states,
+  and clickable sample prompts — `tsc -b` clean, `vite build` green
 - Test suite runnable with pytest (35 dataset + 2 health + 21 database
   + 27 engine + 29 forecast + 32 anomaly + 31 agent + 12 multi-turn
-  + 14 action + 29 API tests — 232 total, all offline)
+  + 14 action + 29 API + 9 Phase-10 endpoint tests — 241 total, all offline)
 
 All financial data in this system is **synthetic** and produced by a seeded
 dataset generator. Nothing here moves real money.
@@ -289,7 +298,8 @@ backend/
   ml/                  anomaly model training + artifacts
   scripts/             dataset generator and utilities
   tests/               pytest suite
-frontend/              React + Vite + Tailwind dashboard (scaffolded next)
+frontend/              React + Vite + TypeScript + Tailwind dashboard
+                       (six pages, global merchant/date scope, agent chat)
 data/
   raw/                 generator inputs
   generated/           seeded synthetic datasets
@@ -320,6 +330,24 @@ Verify:
 
 - Health: http://127.0.0.1:8000/health → `{"status": "ok", ...}`
 - Interactive API docs: http://127.0.0.1:8000/docs
+
+## Quick start (frontend)
+
+Requirements: Node 18+ (Node 22 used in development). Run the backend first.
+
+```powershell
+# 1. Install dependencies (once)
+cd frontend
+npm install
+
+# 2. Start the dev server (proxies /api and /health to :8000)
+npm run dev
+```
+
+Verify: open http://localhost:5173 — the dashboard loads with merchant /
+date scoping, six pages, and the agent chat panel.
+
+Production build: `npm run build` (output in `frontend/dist/`).
 
 ## Run the tests
 

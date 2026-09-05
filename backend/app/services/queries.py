@@ -1,4 +1,4 @@
-"""Read-only query services for the Phase 9 API surface.
+"""Read-only query services for the Phase 9/10 API surface.
 
 These functions exist so the routes stay thin (the Phase 8 convention):
 filters, ordering, and serialization live here, unit-testable without
@@ -6,8 +6,11 @@ FastAPI. Everything in this module is strictly read-only.
 
 - ``list_exceptions``    persisted ``reconciliation_exceptions`` rows,
                          joined to their transaction (merchant scope)
-- ``get_run_detail``     one agent run with its tool calls and transcript
-- ``list_audit_events``  the append-only ``audit_events`` trail
+- ``get_run_detail``    one agent run with its tool calls and transcript
+- ``list_audit_events`` the append-only ``audit_events`` trail
+- ``list_proposals``    journal proposals pending/decided (Action view)
+- ``list_runs``         agent run history (Audit view)
+- ``list_merchants``    merchant master rows (dashboard selector)
 
 Row caps mirror the ledger-tool convention: fetch ``limit + 1`` rows and
 report ``truncated`` when the extra row existed.
@@ -25,6 +28,8 @@ from app.models import (
     AgentMessage,
     AgentRun,
     AuditEvent,
+    JournalProposal,
+    Merchant,
     ReconciliationException,
     ToolCall,
     Transaction,
@@ -37,6 +42,9 @@ __all__ = [
     "get_run_detail",
     "list_audit_events",
     "list_exceptions",
+    "list_merchants",
+    "list_proposals",
+    "list_runs",
 ]
 
 DEFAULT_LIMIT = 500
@@ -242,4 +250,135 @@ def _audit_row(event: AuditEvent) -> dict[str, Any]:
         "after_state": dict(event.after_state),
         "created_at": event.created_at,
     }
+
+
+def list_proposals(
+    db: Session,
+    *,
+    status: str | None = None,
+    merchant_id: str | None = None,
+    transaction_id: str | None = None,
+    limit: int | None = DEFAULT_LIMIT,
+) -> dict[str, Any]:
+    """List journal proposals, newest first (the Action view's queue).
+
+    ``merchant_id`` scopes through the linked transaction. Status filter
+    accepts the proposal lifecycle states (``pending`` / ``approved`` /
+    ``rejected`` / ``rolled_back``); an unknown status simply matches no
+    rows (the route validates the enum instead).
+    """
+    stmt = select(JournalProposal, Transaction, Merchant).join(
+        Transaction,
+        JournalProposal.transaction_id == Transaction.transaction_id,
+    ).join(
+        Merchant,
+        Transaction.merchant_id == Merchant.merchant_id,
+    )
+    if status is not None:
+        stmt = stmt.where(JournalProposal.status == status)
+    if merchant_id is not None:
+        stmt = stmt.where(Transaction.merchant_id == merchant_id)
+    if transaction_id is not None:
+        stmt = stmt.where(JournalProposal.transaction_id == transaction_id)
+
+    stmt = stmt.order_by(
+        JournalProposal.created_at.desc(), JournalProposal.proposal_id.desc()
+    )
+    if limit is not None:
+        stmt = stmt.limit(limit + 1)
+
+    rows = [_proposal_row(p, t, m) for p, t, m in db.execute(stmt)]
+    truncated = limit is not None and len(rows) > limit
+    if truncated:
+        rows = rows[:limit]
+
+    return {
+        "count": len(rows),
+        "limit": limit,
+        "truncated": truncated,
+        "filters": {
+            "status": status,
+            "merchant_id": merchant_id,
+            "transaction_id": transaction_id,
+        },
+        "rows": rows,
+    }
+
+
+def _proposal_row(
+    proposal: JournalProposal,
+    transaction: Transaction,
+    merchant: Merchant,
+) -> dict[str, Any]:
+    """Serialize one proposal joined to its transaction and merchant."""
+    return {
+        "proposal_id": proposal.proposal_id,
+        "agent_run_id": proposal.agent_run_id,
+        "transaction_id": proposal.transaction_id,
+        "merchant_id": transaction.merchant_id,
+        "merchant_name": merchant.name,
+        "entry_date": proposal.entry_date,
+        "debit_account": proposal.debit_account,
+        "credit_account": proposal.credit_account,
+        "amount": round2(proposal.amount),
+        "narrative": proposal.narrative,
+        "evidence_ids": list(proposal.evidence_ids),
+        "confidence": float(proposal.confidence),
+        "status": proposal.status,
+        "created_at": proposal.created_at,
+    }
+
+
+def list_runs(
+    db: Session,
+    *,
+    status: str | None = None,
+    limit: int | None = DEFAULT_LIMIT,
+) -> dict[str, Any]:
+    """List agent runs, newest first (the Audit view's run history)."""
+    stmt = select(AgentRun)
+    if status is not None:
+        stmt = stmt.where(AgentRun.status == status)
+    stmt = stmt.order_by(AgentRun.started_at.desc(), AgentRun.run_id.desc())
+    if limit is not None:
+        stmt = stmt.limit(limit + 1)
+
+    runs = [_run_row(run) for run in db.execute(stmt).scalars()]
+    truncated = limit is not None and len(runs) > limit
+    if truncated:
+        runs = runs[:limit]
+
+    return {
+        "count": len(runs),
+        "limit": limit,
+        "truncated": truncated,
+        "filters": {"status": status},
+        "rows": runs,
+    }
+
+
+def _run_row(run: AgentRun) -> dict[str, Any]:
+    """Serialize one agent-run summary row (no transcript payload)."""
+    return {
+        "run_id": run.run_id,
+        "user_query": run.user_query,
+        "status": run.status,
+        "turn_count": run.turn_count,
+        "tool_call_count": run.tool_call_count,
+    }
+
+
+def list_merchants(db: Session) -> dict[str, Any]:
+    """List merchants (the dashboard's selector); ordered by merchant id."""
+    stmt = select(Merchant).order_by(Merchant.merchant_id)
+    merchants = [
+        {
+            "merchant_id": m.merchant_id,
+            "name": m.name,
+            "category": m.category,
+            "currency": m.currency,
+        }
+        for m in db.execute(stmt).scalars()
+    ]
+    return {"count": len(merchants), "rows": merchants}
 
