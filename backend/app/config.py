@@ -44,6 +44,12 @@ class Settings(BaseModel):
     # Conversation messages replayed to the model on a follow-up turn
     # (bounded multi-turn context, Phase 7).
     agent_max_history_messages: int = Field(default=40, ge=1)
+    # Wall-clock ceiling for one agent tool attempt (Phase 13). Registry
+    # entries pin their own per-tool budgets (architecture section 4);
+    # this value caps them all, so operations can tighten every dispatch
+    # with one env var without code changes. The default sits above the
+    # largest per-tool budget, so normal runs use the registry values.
+    tool_timeout_seconds: float = Field(default=30.0, gt=0)
 
     # --- Forecasting (Phase 4) --------------------------------------------
     # Minimum operating cash (INR); a cash-flow forecast whose projection
@@ -86,5 +92,6 @@ def get_settings() -> Settings:
         agent_max_history_messages=int(
             os.getenv("AGENT_MAX_HISTORY_MESSAGES", "40")
         ),
+        tool_timeout_seconds=float(os.getenv("TOOL_TIMEOUT_SECONDS", "30")),
         operating_threshold=float(os.getenv("OPERATING_THRESHOLD", "50000")),
     )

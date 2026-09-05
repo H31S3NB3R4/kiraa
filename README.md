@@ -64,6 +64,24 @@ backend tools decide the **financial facts**. A human decides whether
   agent uses, with guard envelopes, 422 validation, and 404 semantics
 - Phase 10 endpoints: `GET /api/merchants` (merchant picker) and
   `GET /api/proposals` (action-queue cards) — same thin-wrapper pattern
+- Evaluation harness (Phase 12): `app/services/evaluation.py` scores the
+  deterministic engines against the seeded ground truth (reconciliation
+  match accuracy / exception precision-recall / exact-type accuracy, anomaly
+  precision / recall / false-positive rate), benchmarks the agent layer
+  offline with a scripted provider (latency, tool calls, failure rate),
+  renders the todo Phase 12 benchmark table, and ships a CLI
+  (`backend/scripts/run_evaluation.py`); `GET /api/evaluation` exposes the
+  engine scores plus stored agent-run history (strictly read-only — a GET
+  never starts an agent run)
+- Agent reliability hardening (Phase 13): every registry tool entry pins
+  its own wall-clock `timeout_seconds` and bounded `max_retries`
+  (`TOOL_TIMEOUTS` / `TOOL_RETRY_POLICY`); `dispatch_tool` runs each
+  attempt on an isolated worker session, retries timed-out attempts,
+  surfaces exhaustion as a structured `TOOL_TIMEOUT` envelope (never a
+  hang), and the `TOOL_TIMEOUT_SECONDS` setting acts as a global ceiling
+  that can tighten — never loosen — the per-tool budgets; the Gemini
+  adapter retries transient HTTP failures (429/5xx) with bounded backoff;
+  blank chat messages are refused at the schema boundary with 422
 - React dashboard (`frontend/`): Vite + TypeScript + Tailwind, six pages
   (Dashboard KPIs, Reconciliation, Forecast, Anomalies, Actions, Audit)
   behind a global merchant/date scope, an axios client over the 16-endpoint
@@ -72,7 +90,8 @@ backend tools decide the **financial facts**. A human decides whether
   and clickable sample prompts — `tsc -b` clean, `vite build` green
 - Test suite runnable with pytest (35 dataset + 2 health + 21 database
   + 27 engine + 29 forecast + 32 anomaly + 31 agent + 12 multi-turn
-  + 14 action + 29 API + 9 Phase-10 endpoint tests — 241 total, all offline)
+  + 14 action + 29 API + 9 Phase-10 endpoint + 10 evaluation + 13
+  reliability tests — 264 total, all offline)
 
 All financial data in this system is **synthetic** and produced by a seeded
 dataset generator. Nothing here moves real money.
@@ -367,6 +386,7 @@ All configuration is environment-driven; see `.env.example` for the full list.
 | `CORS_ORIGINS`         | Vite dev origins              | Comma-separated allowed browser origins        |
 | `AGENT_MAX_TOOL_CALLS` | `12`                          | Bounded tool-call limit per agent run (spans all turns) |
 | `AGENT_MAX_HISTORY_MESSAGES` | `40`                     | Conversation events replayed on follow-up turns (bounded context) |
+| `TOOL_TIMEOUT_SECONDS`  | `30`                          | Global ceiling (s) per agent tool attempt — tightens, never loosens, the per-tool registry budgets |
 | `OPERATING_THRESHOLD`  | `50000`                       | Minimum operating cash (INR) for forecast risk  |
 
 ## Safety model (summary)

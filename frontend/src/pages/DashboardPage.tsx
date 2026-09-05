@@ -6,9 +6,9 @@
  */
 
 import { useEffect, useState } from 'react'
-import { AlertTriangle, CheckCircle2, IndianRupee, ShieldAlert } from 'lucide-react'
-import { getExceptions, getMetrics } from '../api/endpoints'
-import type { ExceptionRow, MetricsResponse } from '../api/types'
+import { AlertTriangle, CheckCircle2, IndianRupee, ShieldAlert, Target } from 'lucide-react'
+import { getEvaluation, getExceptions, getMetrics } from '../api/endpoints'
+import type { EvaluationResponse, ExceptionRow, MetricsResponse } from '../api/types'
 import { useScope } from '../state/scope'
 import {
   exceptionLabel,
@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const { scope, params } = useScope()
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null)
   const [topExceptions, setTopExceptions] = useState<ExceptionRow[]>([])
+  const [evaluation, setEvaluation] = useState<EvaluationResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -62,11 +63,13 @@ export default function DashboardPage() {
     Promise.all([
       getMetrics(scope.merchantId ? { merchant_id: scope.merchantId } : undefined),
       getExceptions({ ...params, status: 'open', limit: 5, sort: 'impact_desc' }),
+      getEvaluation().catch(() => null), // benchmark card is optional on the dashboard
     ])
-      .then(([m, exc]) => {
+      .then(([m, exc, ev]) => {
         if (cancelled) return
         setMetrics(m)
         setTopExceptions(exc.rows)
+        setEvaluation(ev)
       })
       .catch((e: unknown) => {
         if (!cancelled)
@@ -128,6 +131,53 @@ export default function DashboardPage() {
           tone="bg-rose-50 text-rose-600"
         />
       </div>
+
+      <Card
+        title="Benchmark (vs. seeded ground truth)"
+        subtitle={`Scored against the fixed synthetic benchmark — ${formatNumber(
+          evaluation?.records_processed ?? 0,
+        )} records, measured not estimated`}
+      >
+        {evaluation === null || evaluation.status !== 'ok' || !evaluation.reconciliation || !evaluation.anomaly ? (
+          <EmptyState message="Benchmark unavailable — seed the database with the labelled dataset." />
+        ) : (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+            {[
+              { label: 'Recon accuracy', value: formatPct(evaluation.reconciliation.match_accuracy_pct) },
+              { label: 'Exception P/R', value: `${formatPct(evaluation.reconciliation.exception_precision_pct, 0)} / ${formatPct(evaluation.reconciliation.exception_recall_pct, 0)}` },
+              { label: 'Anomaly P/R', value: `${formatPct(evaluation.anomaly.precision_pct, 0)} / ${formatPct(evaluation.anomaly.recall_pct, 0)}` },
+              { label: 'False-positive rate', value: formatPct(evaluation.anomaly.false_positive_rate_pct) },
+              {
+                label: 'Avg tool calls/run',
+                value:
+                  evaluation.agent_history && evaluation.agent_history.runs > 0
+                    ? formatNumber(evaluation.agent_history.average_tool_calls_per_run)
+                    : '—',
+              },
+              { label: 'Unresolved', value: formatNumber(evaluation.unresolved_exceptions) },
+            ].map(({ label, value }) => (
+              <div
+                key={label}
+                className="rounded-lg border border-slate-100 bg-slate-50/60 px-3 py-2.5 text-center"
+              >
+                <p className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                  {label}
+                </p>
+                <p className="mt-1 text-sm font-semibold text-slate-900">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+        {evaluation?.agent_history && evaluation.agent_history.runs > 0 && (
+          <p className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-400">
+            <Target className="h-3 w-3" />
+            Agent history: {formatNumber(evaluation.agent_history.runs)} runs ·{' '}
+            {formatNumber(evaluation.agent_history.total_tool_calls)} tool calls ·{' '}
+            {formatPct(evaluation.agent_history.tool_failure_rate_pct)} failures ·{' '}
+            {formatNumber(evaluation.agent_history.average_run_latency_ms)} ms avg LLM latency
+          </p>
+        )}
+      </Card>
 
       <Card
         title="Top open exceptions"

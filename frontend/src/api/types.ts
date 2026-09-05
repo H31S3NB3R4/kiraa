@@ -279,3 +279,55 @@ export interface AgentChatResponse {
   tool_calls: ToolCallInfo[]
   total_llm_latency_ms: number
 }
+
+/** Stored agent-run aggregates served by `GET /api/evaluation` (Phase 12). */
+export interface EvaluationAgentHistory {
+  runs: number
+  completed_runs: number
+  model_error_runs: number
+  tool_limit_runs: number
+  total_tool_calls: number
+  failed_tool_calls: number
+  average_tool_calls_per_run: number
+  tool_failure_rate_pct: number
+  average_run_latency_ms: number
+  source: string
+}
+
+/** `GET /api/evaluation` — benchmark metrics scored against ground truth. */
+export interface EvaluationResponse {
+  tool: string
+  status: string
+  synthetic: boolean
+  records_processed: number
+  reconciliation: {
+    records: number
+    matched: number
+    exceptions_detected: number
+    ground_truth_exceptions: number
+    true_positives: number
+    false_positives: number
+    false_negatives: number
+    match_accuracy_pct: number
+    exception_precision_pct: number
+    exception_recall_pct: number
+    exception_type_accuracy_pct: number
+    financial_impact_at_risk: number
+    latency_ms: number
+    unresolved_exception_transactions: string[]
+  } | null
+  anomaly: {
+    records: number
+    flagged: number
+    ground_truth_anomalies: number
+    precision_pct: number
+    recall_pct: number
+    false_positive_rate_pct: number
+    latency_ms: number
+    unresolved_anomaly_transactions: string[]
+  } | null
+  unresolved_exceptions: number
+  throughput_records_per_min: number | null
+  harness_latency_ms: number | null
+  agent_history: EvaluationAgentHistory | null
+}

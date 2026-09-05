@@ -10,15 +10,27 @@ from __future__ import annotations
 
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AgentChatRequest(BaseModel):
-    """``POST /api/agent/chat`` request body (architecture section 13)."""
+    """``POST /api/agent/chat`` request body (architecture section 13).
+
+    The message must be a non-empty, non-whitespace string (Phase 13
+    reliability: an empty query is refused at the schema boundary with a
+    422, never forwarded to the provider or charged a run).
+    """
 
     run_id: str | None = None
     message: str = Field(min_length=1)
     merchant_id: str | None = None
+
+    @field_validator("message")
+    @classmethod
+    def _message_not_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("message must contain at least one non-whitespace character")
+        return value
 
 
 class ToolCallInfo(BaseModel):

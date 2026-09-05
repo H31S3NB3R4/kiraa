@@ -142,7 +142,8 @@ def test_openapi_exposes_the_prd_section_16_surface() -> None:
     """The app registers exactly the PRD section-16 API plus /health.
 
     Phase 10 adds the dashboard-support listings (``/api/proposals``,
-    ``/api/merchants``, ``/api/runs``) on top of the PRD surface.
+    ``/api/merchants``, ``/api/runs``); Phase 12 adds the evaluation
+    harness endpoint on top of the PRD surface.
     """
     paths = set(app.openapi()["paths"])
     expected = {
@@ -162,6 +163,7 @@ def test_openapi_exposes_the_prd_section_16_surface() -> None:
         "/api/metrics",
         "/api/proposals",
         "/api/merchants",
+        "/api/evaluation",
     }
     assert paths == expected
 

@@ -12,6 +12,7 @@ import type {
   AgentChatResponse,
   AnomalyResponse,
   AuditEventRow,
+  EvaluationResponse,
   ExceptionRow,
   ForecastResponse,
   LedgerQueryResponse,
@@ -58,6 +59,10 @@ export const getRunDetail = (runId: string) =>
 
 export const getMerchants = () =>
   api.get<MerchantsListResponse>('/merchants').then((r) => r.data)
+
+/** Phase 12 benchmark metrics scored against the seeded ground truth. */
+export const getEvaluation = () =>
+  api.get<EvaluationResponse>('/evaluation').then((r) => r.data)
 
 export const chat = (body: AgentChatRequest) =>
   api.post<AgentChatResponse>('/agent/chat', body).then((r) => r.data)

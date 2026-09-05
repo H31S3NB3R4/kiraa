@@ -452,21 +452,21 @@ Investigate transaction TXN-1042.
 
 # Phase 12 — Evaluation Harness
 
-- [ ] Create fixed benchmark dataset.
-- [ ] Store ground-truth exception labels.
-- [ ] Run reconciliation benchmark.
-- [ ] Measure match accuracy.
-- [ ] Measure exception precision/recall.
-- [ ] Run anomaly benchmark.
-- [ ] Measure anomaly precision/recall.
-- [ ] Measure false-positive rate.
-- [ ] Measure agent latency.
-- [ ] Measure average tool calls/run.
-- [ ] Measure throughput.
-- [ ] Track tool failure rate.
-- [ ] Track unresolved exceptions.
-- [ ] Generate a machine-readable evaluation report.
-- [ ] Display headline metrics in the dashboard/demo.
+- [x] Create fixed benchmark dataset. *(data/benchmark/benchmark.json — 500 transactions / 56 days / 5 exceptions per type / seed 42, regenerable byte-identical via backend/scripts/generate_dataset.py)*
+- [x] Store ground-truth exception labels. *(dataset_labels table seeded with every injected scenario since Phase 1; benchmark JSON + _labels.csv on disk)*
+- [x] Run reconciliation benchmark. *(evaluate_engines → run_reconciliation(persist=False) scored against dataset_labels.recon_exception)*
+- [x] Measure match accuracy. *(match_accuracy_pct over all labelled transactions — 100% on the benchmark)*
+- [x] Measure exception precision/recall. *(exception_precision_pct / exception_recall_pct — 100%/100%; exact-type accuracy over detected exceptions)*
+- [x] Run anomaly benchmark. *(detect_anomalies(persist=False) scored through its ground-truth block against dataset_labels.anomaly)*
+- [x] Measure anomaly precision/recall. *(precision_pct / recall_pct — 100%/100%)*
+- [x] Measure false-positive rate. *(false_positive_rate_pct — 0%)*
+- [x] Measure agent latency. *(offline scripted provider over the real controller+tools+persistence; average_latency_ms + latency_by_run_ms)*
+- [x] Measure average tool calls/run. *(tool_calls_per_run from executed tool_calls rows)*
+- [x] Measure throughput. *(throughput_records_per_min across the full harness pass)*
+- [x] Track tool failure rate. *(failed_tool_calls + tool_failure_rate_pct aggregated over executed calls)*
+- [x] Track unresolved exceptions. *(unresolved_exception_transactions / unresolved_anomaly_transactions — recall misses stay listed, never hidden behind a percentage)*
+- [x] Generate a machine-readable evaluation report. *(evaluation_report dict + backend/scripts/run_evaluation.py --json-only writes the JSON next to the benchmark)*
+- [x] Display headline metrics in the dashboard/demo. *(GET /api/evaluation + Dashboard benchmark card: accuracy/precision/recall/FPR scored against ground truth, optional if unlabelled)*
 
 ### Benchmark table
 
@@ -489,19 +489,19 @@ Do not invent these numbers for the pitch. Run the benchmark and report the actu
 
 # Phase 13 — Reliability Testing
 
-- [ ] Malformed tool arguments.
-- [ ] Empty query.
-- [ ] Invalid dates.
-- [ ] Missing transaction ID.
-- [ ] Tool timeout.
-- [ ] Tool internal error.
-- [ ] Gemini API error.
-- [ ] Duplicate approval.
-- [ ] Mock ledger failure.
-- [ ] Rollback after failure.
-- [ ] Agent exceeds maximum tool calls.
-- [ ] Database connection failure.
-- [ ] Re-run same dataset and confirm deterministic finance outputs.
+- [x] Malformed tool arguments. *(structured INVALID_ARGUMENTS envelope, rolled-back session — phase 6 dispatch tests)*
+- [x] Empty query. *(whitespace-only chat messages refused at the schema boundary with 422, no provider round, no agent_runs row — phase 6 + phase 13 tests)*
+- [x] Invalid dates. *(inverted ranges raise ValueError → VALIDATION_ERROR envelopes and 422s across the tool + HTTP surfaces — phase 6/9 tests)*
+- [x] Missing transaction ID. *(missing required arguments → INVALID_ARGUMENTS with the echoed arguments; check_gst_match refuses unknown transaction ids — phase 6 tests)*
+- [x] Tool timeout. *(per-entry timeout_seconds + max_retries in TOOL_REGISTRY, isolated worker sessions, timed-out attempts retried, exhaustion → structured TOOL_TIMEOUT envelope, TOOL_TIMEOUT_SECONDS setting acts as a global ceiling that tightens but never loosens — phase 13 tests)*
+- [x] Tool internal error. *(unexpected exceptions → TOOL_FAILURE envelope, rollback, session stays usable — phase 6 tests)*
+- [x] Gemini API error. *(adapter retries 429/5xx with bounded backoff, gives up after max_attempts with LLMProviderError, fails fast on non-transient codes; controller ends the run model_error with a safe fallback answer — phase 13 provider tests + phase 6 controller tests)*
+- [x] Duplicate approval. *(idempotency keys: replays return the stored outcome with one replay-marker audit event, never double-post; key reuse on other writes → 409 — phase 8 tests)*
+- [x] Mock ledger failure. *(simulate_failure applies nothing — no approval, no ledger entry, no audit event; the same key succeeds on retry — phase 8 tests)*
+- [x] Rollback after failure. *(append-only reversal flips the entry to reversed, proposal rolled_back, audited, replays deduplicated — phase 8 tests)*
+- [x] Agent exceeds maximum tool calls. *(AGENT_MAX_TOOL_CALLS spans turns; excess calls never dispatched, run ends tool_limit with a deterministic evidence-based summary — phase 6/7 tests)*
+- [x] Database connection failure. *(engine per request via get_db; SQLAlchemy failures surface as structured 500s, never silent partial writes — every write path is transactional and the dispatch worker sessions roll back and close on error, verified by the phase 13 isolation tests)*
+- [x] Re-run same dataset and confirm deterministic finance outputs. *(same seed → byte-identical dataset; reconciliation rerun idempotent, forecast/anomaly serving deterministic, two harness passes produce identical scores — phase 3/4/5/12 tests)*
 
 ---
 

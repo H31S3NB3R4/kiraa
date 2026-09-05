@@ -10,6 +10,7 @@ from app.api.routes import (
     agent,
     anomalies,
     audit,
+    evaluation,
     exceptions,
     forecast,
     health,
@@ -59,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(metrics.router, tags=["metrics"])
     app.include_router(proposals.router, tags=["proposals"])
     app.include_router(merchants.router, tags=["merchants"])
+    app.include_router(evaluation.router, tags=["evaluation"])
 
     return app
 
